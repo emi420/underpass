@@ -35,6 +35,7 @@
 #include <deque>
 #include <exception>
 #include <filesystem>
+namespace fs = std::filesystem;
 #include <fstream>
 #include <iostream>
 #include <list>
@@ -104,7 +105,7 @@ ChangeSetFile::readChanges(const std::string &file)
 
     unsigned char *buffer;
     log_debug("Reading changeset file %1% ", file);
-    std::string suffix = boost::filesystem::extension(file);
+    std::string suffix = fs::path(file).extension();
     // It's a gzipped file, common for files downloaded from planet
     std::ifstream ifile(file, std::ios_base::in | std::ios_base::binary);
     if (suffix == ".gz") { // it's a compressed file

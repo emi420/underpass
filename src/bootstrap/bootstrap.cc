@@ -81,30 +81,34 @@ Bootstrap::start(const underpassconfig::UnderpassConfig &config) {
 
     std::cout << "Loading plugins ... " << std::endl;
     std::string plugins;
-    if (boost::filesystem::exists("src/validate/.libs")) {
-        plugins = "src/validate/.libs";
-    } else {
-        plugins = PKGLIBDIR;
-    }
-    boost::dll::fs::path lib_path(plugins);
-    boost::function<plugin_t> creator;
-    try {
-        creator = boost::dll::import_alias<plugin_t>(lib_path / "libunderpass.so", "create_plugin", boost::dll::load_mode::append_decorations);
-        log_debug("Loaded plugin!");
-    } catch (std::exception &e) {
-        log_debug("Couldn't load plugin! %1%", e.what());
-        exit(0);
-    }
+    if (!config.disable_validation) {
+        if (boost::filesystem::exists("src/validate/.libs")) {
+            plugins = "src/validate/.libs";
+        } else {
+            plugins = PKGLIBDIR;
+        }
+        boost::dll::fs::path lib_path(plugins);
+        boost::function<plugin_t> creator;
+        try {
+            creator = boost::dll::import_alias<plugin_t>(lib_path / "libunderpass.so", "create_plugin", boost::dll::load_mode::append_decorations);
+            log_debug("Loaded plugin!");
+        } catch (std::exception &e) {
+            log_debug("Couldn't load plugin! %1%", e.what());
+            exit(0);
+        }
+        validator = creator();
 
-    validator = creator();
-    queryvalidate = std::make_shared<QueryValidate>(db);
+        queryvalidate = std::make_shared<QueryValidate>(db);
+    }
     queryraw = std::make_shared<QueryRaw>(osmdb);
     page_size = config.bootstrap_page_size;
     concurrency = config.concurrency;
     norefs = config.norefs;
 
-    processWays();
-    processNodes();
+    if (!config.disable_validation) {
+        processWays();
+        processNodes();
+    }
     processRelations();
 
 }
@@ -126,7 +130,6 @@ Bootstrap::processWays() {
         long lastid = 0;
 
         int concurrentTasks = concurrency;
-        int taskIndex = 0;
         int percentage = 0;
 
         for (int chunkIndex = 0; chunkIndex <= (num_chunks/concurrentTasks); chunkIndex++) {
@@ -188,7 +191,6 @@ Bootstrap::processNodes() {
     long lastid = 0;
 
     int concurrentTasks = concurrency;
-    int taskIndex = 0;
     int percentage = 0;
 
     for (int chunkIndex = 0; chunkIndex <= (num_chunks/concurrentTasks); chunkIndex++) {
@@ -242,7 +244,6 @@ Bootstrap::processRelations() {
     long lastid = 0;
 
     int concurrentTasks = concurrency;
-    int taskIndex = 0;
     int percentage = 0;
 
     for (int chunkIndex = 0; chunkIndex <= (num_chunks/concurrentTasks); chunkIndex++) {
@@ -383,7 +384,9 @@ Bootstrap::threadBootstrapRelationTask(RelationTask relationTask)
     for (size_t i = taskIndex * page_size; i < (taskIndex + 1) * page_size; ++i) {
         if (i < relations->size()) {
             auto relation = relations->at(i);
-            // relationval->push_back(validator->checkRelation(way, "building"));
+            // if (!config.disable_validation) {
+            //  relationval->push_back(validator->checkRelation(way, "building"));
+            // }
             // Fill the rel_refs table
             for (auto mit = relation.members.begin(); mit != relation.members.end(); ++mit) {
                 task.osmquery.push_back("INSERT INTO rel_refs (rel_id, way_id) VALUES (" + std::to_string(relation.id) + "," + std::to_string(mit->ref) + "); ");
@@ -391,7 +394,9 @@ Bootstrap::threadBootstrapRelationTask(RelationTask relationTask)
             ++processed;
         }
     }
-    // queryvalidate->relations(relationval, task.query);
+    // if (!config.disable_validation) {
+    //  queryvalidate->relations(relationval, task.query);
+    // }
     task.processed = processed;
     const std::lock_guard<std::mutex> lock(tasks_change_mutex);
     (*tasks)[taskIndex] = task;

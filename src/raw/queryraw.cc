@@ -69,7 +69,7 @@ QueryRaw::buildTagsQuery(std::map<std::string, std::string> tags) const {
         int count = 0;
         for (auto it = std::begin(tags); it != std::end(tags); ++it) {
             ++count;
-            // PostgreSQL has an argument limit for functions (100 parameters max)
+            // PostgreSQL has an argument LIMIT for functions (100 parameters max)
             // Because of this, when the count of key/value pairs reaches 50, 
             // a concatenation of multiple calls to the jsonb_build_object() function 
             // is needed.
@@ -180,7 +180,7 @@ QueryRaw::applyChange(const OsmNode &node) const
 
     // If create or modify, then insert or update
     if (node.action == osmobjects::create || node.action == osmobjects::modify) {
-        std::string query = "INSERT INTO nodes as r (osm_id, geom, tags, timestamp, version, \"user\", uid, changeset) VALUES(";
+        std::string query = "INSERT INTO nodes AS r (osm_id, geom, tags, timestamp, version, \"user\", uid, changeset) VALUES(";
         std::string format = "%d, ST_GeomFromText(\'%s\', 4326), %s, \'%s\', %d, \'%s\', %d, %d \
         ) ON CONFLICT (osm_id) DO UPDATE SET  geom = ST_GeomFromText(\'%s\', \
         4326), tags = %s, timestamp = \'%s\', version = %d, \"user\" = \'%s\', uid = %d, changeset = %d WHERE r.version < %d;";
@@ -225,7 +225,7 @@ QueryRaw::applyChange(const OsmNode &node) const
 
     // If remove, then delete the object
     } else if (node.action == osmobjects::remove) {
-        queries->push_back("DELETE from nodes where osm_id = " + std::to_string(node.id) + ";");
+        queries->push_back("DELETE FROM nodes WHERE osm_id = " + std::to_string(node.id) + ";");
     }
 
     return queries;
@@ -268,7 +268,7 @@ QueryRaw::applyChange(const OsmWay &way) const
             // user, uid and changeset
             if (way.action != osmobjects::modify_geom) {
 
-                query = "INSERT INTO " + *tableName + " as r (osm_id, tags, refs, geom, timestamp, version, \"user\", uid, changeset) VALUES(";
+                query = "INSERT INTO " + *tableName + " AS r (osm_id, tags, refs, geom, timestamp, version, \"user\", uid, changeset) VALUES(";
                 std::string format = "%d, %s, %s, %s, \'%s\', %d, \'%s\', %d, %d) \
                 ON CONFLICT (osm_id) DO UPDATE SET tags = %s, refs = %s, geom = %s, timestamp = \'%s\', version = %d, \"user\" = \'%s\', uid = %d, changeset = %d WHERE r.version <= %d;";
                 boost::format fmt(format);
@@ -363,9 +363,9 @@ QueryRaw::applyChange(const OsmWay &way) const
     } else if (way.action == osmobjects::remove) {
         // Delete a Way geometry and its references.
         if (tableName == &QueryRaw::polyTable) {
-            queries->push_back("DELETE FROM " + QueryRaw::polyTable + " where osm_id = " + std::to_string(way.id) + ";");
+            queries->push_back("DELETE FROM " + QueryRaw::polyTable + " WHERE osm_id = " + std::to_string(way.id) + ";");
         } else {
-            queries->push_back("DELETE FROM " + QueryRaw::lineTable + " where osm_id = " + std::to_string(way.id) + ";");
+            queries->push_back("DELETE FROM " + QueryRaw::lineTable + " WHERE osm_id = " + std::to_string(way.id) + ";");
         }
     }
 
@@ -475,7 +475,7 @@ QueryRaw::applyChange(const OsmRelation &relation) const
         }
     } else if (relation.action == osmobjects::remove) {
         // Delete a Relation geometry and its references.
-        queries->push_back("DELETE FROM relations where osm_id = " + std::to_string(relation.id) + ";");
+        queries->push_back("DELETE FROM relations WHERE osm_id = " + std::to_string(relation.id) + ";");
     }
 
     return queries;
@@ -561,8 +561,8 @@ QueryRaw::getWaysByIds(std::string &waysIds, std::map<long, std::shared_ptr<osmo
     boost::timer::auto_cpu_timer timer("getWaysByIds(waysIds, waycache): took %w seconds\n");
 #endif
     // Get Ways and it's geometries (Polygon and LineString)
-    std::string waysQuery = "SELECT distinct(osm_id), ST_AsText(geom, 4326), 'polygon' as type from ways_poly wp where osm_id = any(ARRAY[" + waysIds + "]) ";
-    waysQuery += "UNION SELECT distinct(osm_id), ST_AsText(geom, 4326), 'linestring' as type from ways_line wp where osm_id = any(ARRAY[" + waysIds + "]);";
+    std::string waysQuery = "SELECT distinct(osm_id), ST_AsText(geom, 4326), 'polygon' AS type FROM ways_poly wp WHERE osm_id = any(ARRAY[" + waysIds + "]) ";
+    waysQuery += "UNION SELECT distinct(osm_id), ST_AsText(geom, 4326), 'linestring' AS type FROM ways_line wp WHERE osm_id = any(ARRAY[" + waysIds + "]);";
     auto ways_result = dbconn->query(waysQuery);
     if (ways_result.size() == 0) {
         log_debug("No results returned!");
@@ -667,7 +667,7 @@ void QueryRaw::buildGeometries(std::shared_ptr<OsmChangeFile> osmchanges, const 
         auto change = std::make_shared<OsmChange>(none);
         for (auto wit = modifiedWays.begin(); wit != modifiedWays.end(); ++wit) {
            auto way = std::make_shared<OsmWay>(*wit->get());
-           // If the Way is not removed
+           // If the Way IS NOT removed
            if (std::find(removedWays.begin(), removedWays.end(), way->id) == removedWays.end()) {
 
                 // Save referenced Nodes. This list will be used for getting the geometries of
@@ -706,7 +706,7 @@ void QueryRaw::buildGeometries(std::shared_ptr<OsmChangeFile> osmchanges, const 
         auto change = std::make_shared<OsmChange>(none);
         for (auto rel_it = modifiedRelations.begin(); rel_it != modifiedRelations.end(); ++rel_it) {
            auto relation = std::make_shared<OsmRelation>(*rel_it->get());
-           // If the Relation is not removed
+           // If the Relation IS NOT removed
            if (std::find(removedRelations.begin(), removedRelations.end(), relation->id) == removedRelations.end()) {
                 // Flag it as modified geometry. This means that only the geometry was modified,
                 // nor its tags, version, etc.
@@ -724,7 +724,7 @@ void QueryRaw::buildGeometries(std::shared_ptr<OsmChangeFile> osmchanges, const 
     if (referencedNodeIds.size() > 1) {
         referencedNodeIds.erase(referencedNodeIds.size() - 1);
         // Get Nodes geoemtries from DB
-        std::string nodesQuery = "SELECT osm_id, st_x(geom) as lat, st_y(geom) as lon FROM nodes where osm_id in (" + referencedNodeIds + ");";
+        std::string nodesQuery = "SELECT osm_id, st_x(geom) AS lat, st_y(geom) AS lon FROM nodes WHERE osm_id IN (" + referencedNodeIds + ");";
         auto result = dbconn->query(nodesQuery);
         if (result.size() == 0) {
             log_debug("No results returned!");
@@ -831,7 +831,7 @@ QueryRaw::getNodeCacheFromWays(std::shared_ptr<std::vector<OsmWay>> ways, std::m
         nodeIds.erase(nodeIds.size() - 1);
 
         // Get Nodes geometries from the DB
-        std::string nodesQuery = "SELECT osm_id, st_x(geom) as lat, st_y(geom) as lon FROM nodes where osm_id in (" + nodeIds + ") and st_x(geom) is not null and st_y(geom) is not null;";
+        std::string nodesQuery = "SELECT osm_id, st_x(geom) AS lat, st_y(geom) AS lon FROM nodes WHERE osm_id IN (" + nodeIds + ") and st_x(geom) IS NOT null AND st_y(geom) IS NOT null;";
         auto result = dbconn->query(nodesQuery);
         if (result.size() == 0) {
             log_debug("No results returned!");
@@ -862,8 +862,8 @@ QueryRaw::getWaysByNodesRefs(std::string &nodeIds) const
 
     // Get all Ways that have references to Nodes from the DB, including Polygons and LineString geometries
     // std::string waysQuery = "SELECT distinct(osm_id), refs, version, tags, uid, changeset from way_refs join ways_poly wp on wp.osm_id = way_id where node_id = any(ARRAY[" + nodeIds + "])";
-    queries.push_back("SELECT distinct(osm_id), refs, version, tags, uid, changeset from ways_poly where refs @> '{" + nodeIds + "}';");
-    queries.push_back("SELECT distinct(osm_id), refs, version, tags, uid, changeset from ways_line where refs @> '{" + nodeIds + "}';");
+    queries.push_back("SELECT distinct(osm_id), refs, version, tags, uid, changeset FROM ways_poly WHERE refs @> '{" + nodeIds + "}';");
+    queries.push_back("SELECT distinct(osm_id), refs, version, tags, uid, changeset FROM ways_line WHERE refs @> '{" + nodeIds + "}';");
 
     for (auto it = queries.begin(); it != queries.end(); ++it) {
 
@@ -905,7 +905,7 @@ QueryRaw::getWaysByNodesRefs(std::string &nodeIds) const
 
 // Get the count of objects for a table (nodes, ways_poly, ways_line, relations)
 int QueryRaw::getCount(const std::string &tableName) {
-    std::string query = "select count(osm_id) from " + tableName;
+    std::string query = "SELECT count(osm_id) FROM " + tableName + " WHERE geom IS NOT null";
     auto result = dbconn->query(query);
     return result[0][0].as<int>();
 }
@@ -918,9 +918,9 @@ QueryRaw::getNodesFromDB(long lastid, int pageSize) {
     std::string nodesQuery = "SELECT osm_id, ST_AsText(geom, 4326)";
 
     if (lastid > 0) {
-        nodesQuery += ", version, tags FROM nodes where osm_id < " + std::to_string(lastid) + " order by osm_id desc limit " + std::to_string(pageSize) + ";";
+        nodesQuery += ", version, tags FROM nodes WHERE osm_id < " + std::to_string(lastid) + " ORDER BY osm_id DESC LIMIT " + std::to_string(pageSize) + ";";
     } else {
-        nodesQuery += ", version, tags FROM nodes order by osm_id desc limit " + std::to_string(pageSize) + ";";
+        nodesQuery += ", version, tags FROM nodes ORDER BY osm_id DESC LIMIT " + std::to_string(pageSize) + ";";
     }
     auto nodes = std::make_shared<std::vector<OsmNode>>();
     auto nodes_result = dbconn->query(nodesQuery);
@@ -931,6 +931,12 @@ QueryRaw::getNodesFromDB(long lastid, int pageSize) {
 
     // Fill vector of OsmNode objects
     for (auto node_it = nodes_result.begin(); node_it != nodes_result.end(); ++node_it) {
+
+        // Skip empty geometries
+        if ((*node_it)[1].is_null()) {
+            continue;
+        }
+
         OsmNode node;
         node.id = (*node_it)[0].as<long>();
 
@@ -966,9 +972,9 @@ QueryRaw::getWaysFromDB(long lastid, int pageSize, const std::string &tableName)
         waysQuery = "SELECT osm_id, refs, ST_AsText(geom, 4326)";
     }
     if (lastid > 0) {
-        waysQuery += ", version, tags FROM " + tableName + " where osm_id < " + std::to_string(lastid) + " order by osm_id desc limit " + std::to_string(pageSize) + ";";
+        waysQuery += ", version, tags FROM " + tableName + " WHERE osm_id < " + std::to_string(lastid) + " ORDER BY osm_id DESC LIMIT " + std::to_string(pageSize) + ";";
     } else {
-        waysQuery += ", version, tags FROM " + tableName + " order by osm_id desc limit " + std::to_string(pageSize) + ";";
+        waysQuery += ", version, tags FROM " + tableName + " ORDER BY osm_id DESC LIMIT " + std::to_string(pageSize) + ";";
     }
 
     auto ways = std::make_shared<std::vector<OsmWay>>();
@@ -980,10 +986,17 @@ QueryRaw::getWaysFromDB(long lastid, int pageSize, const std::string &tableName)
 
     // Fill vector of OsmWay objects
     for (auto way_it = ways_result.begin(); way_it != ways_result.end(); ++way_it) {
+
+        // Skip empty geometries
+        if ((*way_it)[2].is_null()) {
+            continue;
+        }
+
         OsmWay way;
         way.id = (*way_it)[0].as<long>();
         std::string refs_str = (*way_it)[1].as<std::string>();
         if (refs_str.size() > 1) {
+
             way.refs = arrayStrToVector(refs_str);
 
             std::string poly = (*way_it)[2].as<std::string>();
@@ -1021,9 +1034,9 @@ QueryRaw::getWaysFromDBWithoutRefs(long lastid, int pageSize, const std::string 
         waysQuery = "SELECT osm_id, ST_AsText(geom, 4326)";
     }
     if (lastid > 0) {
-        waysQuery += ", tags FROM " + tableName + " where osm_id < " + std::to_string(lastid) + " order by osm_id desc limit " + std::to_string(pageSize) + ";";
+        waysQuery += ", tags FROM " + tableName + " WHERE osm_id < " + std::to_string(lastid) + " ORDER BY osm_id DESC LIMIT " + std::to_string(pageSize) + ";";
     } else {
-        waysQuery += ", tags FROM " + tableName + " order by osm_id desc limit " + std::to_string(pageSize) + ";";
+        waysQuery += ", tags FROM " + tableName + " ORDER BY osm_id DESC LIMIT " + std::to_string(pageSize) + ";";
     }
 
     auto ways = std::make_shared<std::vector<OsmWay>>();
@@ -1035,6 +1048,12 @@ QueryRaw::getWaysFromDBWithoutRefs(long lastid, int pageSize, const std::string 
 
     // Fill vector of OsmWay objects
     for (auto way_it = ways_result.begin(); way_it != ways_result.end(); ++way_it) {
+
+        // Skip empty geometries
+        if ((*way_it)[1].is_null()) {
+            continue;
+        }
+
         OsmWay way;
         way.id = (*way_it)[0].as<long>();
 
@@ -1067,9 +1086,9 @@ std::shared_ptr<std::vector<OsmRelation>>
 QueryRaw::getRelationsFromDB(long lastid, int pageSize) {
     std::string relationsQuery = "SELECT osm_id, refs, ST_AsText(geom, 4326)";
     if (lastid > 0) {
-        relationsQuery += ", version, tags FROM relations where osm_id < " + std::to_string(lastid) + " order by osm_id desc limit " + std::to_string(pageSize) + ";";
+        relationsQuery += ", version, tags FROM relations WHERE osm_id < " + std::to_string(lastid) + " ORDER BY osm_id desc LIMIT " + std::to_string(pageSize) + ";";
     } else {
-        relationsQuery += ", version, tags FROM relations order by osm_id desc limit " + std::to_string(pageSize) + ";";
+        relationsQuery += ", version, tags FROM relations ORDER BY osm_id DESC LIMIT " + std::to_string(pageSize) + ";";
     }
 
     auto relations = std::make_shared<std::vector<OsmRelation>>();
@@ -1080,10 +1099,17 @@ QueryRaw::getRelationsFromDB(long lastid, int pageSize) {
     }
     // Fill vector of OsmRelation objects
     for (auto rel_it = relations_result.begin(); rel_it != relations_result.end(); ++rel_it) {
+
         OsmRelation relation;
         relation.id = (*rel_it)[0].as<long>();
         auto refs = (*rel_it)[1];
         if (!refs.is_null()) {
+
+            // Skip empty geometries
+            if ((*rel_it)[2].is_null()) {
+                continue;
+            }
+
             auto refs = parseJSONArrayStr((*rel_it)[1].as<std::string>());
             for (auto ref_it = refs.begin(); ref_it != refs.end(); ++ref_it) {
                 auto relType = osmobjects::osmtype_t::way;

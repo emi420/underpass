@@ -70,6 +70,7 @@ class Bootstrap {
 
     static const std::string polyTable;
     static const std::string lineTable;
+    static const underpassconfig::UnderpassConfig &config;
     
     void start(const underpassconfig::UnderpassConfig &config);
     void processWays();

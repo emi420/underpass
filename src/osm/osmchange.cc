@@ -31,6 +31,8 @@
 #include <pqxx/pqxx>
 #include <list>
 #include <locale>
+#include <filesystem>
+namespace fs = std::filesystem;
 
 #ifdef LIBXML
 #include <libxml++/libxml++.h>
@@ -90,7 +92,7 @@ OsmChangeFile::readChanges(const std::string &file)
     int size = 0;
     unsigned char *buffer;
     log_debug("Reading OsmChange file %1%", file);
-    std::string suffix = boost::filesystem::extension(file);
+    std::string suffix = fs::path(file).extension();
     // It's a gzipped file, common for files downloaded from planet
     std::ifstream ifile(file, std::ios_base::in | std::ios_base::binary);
     if (suffix == ".gz") { // it's a compressed file

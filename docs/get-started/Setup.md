@@ -39,7 +39,7 @@ apt install osm2pgsql
 Go to the `setup` directory and run the boostrap script:
 
 ```
-cd utils
+cd setup
 chmod +x bootstrap.sh
 ./bootstrap.sh -r south-america -c uruguay
 ```

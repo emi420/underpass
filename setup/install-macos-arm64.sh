@@ -18,7 +18,6 @@
 #     along with Underpass.  If not, see <https://www.gnu.org/licenses/>.
 
 echo "Installing dependencies ..."
-sudo port install boost
 brew install \
     libtool \
     gdal \
@@ -28,7 +27,8 @@ brew install \
     boost-python3 \
     libxml++3 \
     libpqxx \
-    gumbo-parser
+    gumbo-parser \
+    boost
 cd ..
 
 echo "Setting up build ..."
@@ -39,7 +39,7 @@ mkdir build && cd build
     CPPFLAGS="-I/opt/homebrew/include -I/usr/local/include" \
     CXX="g++" \
     --enable-python=no \
-    --with-boost=/opt/local/libexec/boost/1.76/lib
+    --with-boost=/opt/local/libexec/boost/1.86.0_2
 
 
 echo "Building ..."

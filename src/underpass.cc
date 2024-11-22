@@ -187,6 +187,17 @@ main(int argc, char *argv[])
         config.concurrency = std::thread::hardware_concurrency();
     }
 
+    // Features
+    if (vm.count("disable-validation")) {
+        config.disable_validation = true;
+    }
+    if (vm.count("disable-stats")) {
+        config.disable_stats = true;
+    }
+    if (vm.count("disable-raw")) {
+        config.disable_raw = true;
+    }
+
     if (vm.count("timestamp") || vm.count("url") ||  vm.count("changeseturl")) {
 
         // Planet server
@@ -241,17 +252,6 @@ main(int argc, char *argv[])
         multipolygon_t * oscboundary = &poly;
         if (!vm.count("oscnoboundary")) {
             oscboundary = &geou.boundary;
-        }
-
-        // Features
-        if (vm.count("disable-validation")) {
-            config.disable_validation = true;
-        }
-        if (vm.count("disable-stats")) {
-            config.disable_stats = true;
-        }
-        if (vm.count("disable-raw")) {
-            config.disable_raw = true;
         }
 
         // Replication
