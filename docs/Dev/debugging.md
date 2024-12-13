@@ -8,7 +8,9 @@ The following flags are suggested when running the configuration for building:
 
 ### Debugging with GDB
 
-`apt-get install gdb`
+```
+sudo apt-get install gdb libtool-bin
+```
 
 Setup an alias for `gdb` in your bash profile,
 adding the following line add the bottom of `~/.bashrc`:
@@ -18,6 +20,7 @@ adding the following line add the bottom of `~/.bashrc`:
 And you'll be able to run the debugger, for example:
 
 `lg src/testsuite/libunderpass.all/yaml-test`
+
 `lg --args ./underpass --bootstrap`
 
 ## Debugging in MacOS
