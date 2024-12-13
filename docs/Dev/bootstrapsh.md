@@ -4,17 +4,16 @@ This script is prepared for a quick bootstrap of the Underpass database.
 
 ## Install requirements
 
-- fiona (pip install fiona)
-- shapely (pip install shapely)
+- fiona `pip install fiona`
+- shapely `pip install shapely`
 - osm2pgsql (https://osm2pgsql.org/doc/install.html)
 - psql (https://www.postgresql.org/download/)
-```
 
 ## Quick start
 
 Run the script passing region, country and DB username as arguments, for example:
 
-```sh
+```bash
 ./bootstrap.sh -r south-america -c ecuador -l yes
 ```
 
@@ -44,7 +43,7 @@ Use the `-l yes` when you have your .pbf and .poly files already downloaded and
 you don't want to download them again. The script will look for those files
 using the `-r` and `-c` arguments, for example
 
-```sh
+```bash
 ./bootstrap.sh -r south-america -c ecuador -u underpass -l yes
 ```
 
@@ -63,7 +62,7 @@ If you want to bootstrap your database with ChangeSet data downloaded from
  A good utility for doing this from command line is in the sendfile_osm_oauth_protector
  repository.
 
- ```sh
+ ```bash
  git clone https://github.com/geofabrik/sendfile_osm_oauth_protector.git
  cd sendfile_osm_oauth_protector
  ```
@@ -81,7 +80,7 @@ Edit `settings.json` with your credentials:
 
 And download your file:
 
-```sh
+```bash
 curl https://osm-internal.download.geofabrik.de/africa/tanzania-latest-internal.osm.pbf \
    --cookie "$(cat cookie_output_file.txt)" --output tanzania-latest.osm.pbf
 ```
