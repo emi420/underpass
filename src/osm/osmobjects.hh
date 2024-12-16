@@ -171,9 +171,9 @@ class OsmWay : public OsmObject {
 
     /// Polygons are closed objects, like a building, while a highway
     /// is a linestring
-    bool isClosed(void)
+    bool isClosed(void) const
     {
-        return (refs.size() > 3 && refs.front() == refs.back());
+        return refs.size() > 3 && (refs.front() == refs.back());
     };
     /// Return the number of nodes in this way
     int numPoints(void) { return boost::geometry::num_points(linestring); };
