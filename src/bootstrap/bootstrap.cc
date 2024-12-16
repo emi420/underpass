@@ -124,6 +124,10 @@ Bootstrap::processWays() {
     for (auto table_it = tables.begin(); table_it != tables.end(); ++table_it) {
         std::cout << std::endl << "Processing ways ... ";
         long int total = queryraw->getCount(*table_it);
+        if (total == 0) {
+            std::cout << std::endl << "WARNING: " << *table_it << " table is empty." << std::endl;
+            continue;
+        }
         long int count = 0;
         int num_chunks = total / page_size;
 
@@ -185,6 +189,10 @@ Bootstrap::processNodes() {
 
     std::cout << "Processing nodes ... ";
     long int total = queryraw->getCount("nodes");
+    if (total == 0) {
+        std::cout << std::endl << "WARNING: nodes table is empty." << std::endl;
+        return;
+    }
     long int count = 0;
     int num_chunks = total / page_size;
 
@@ -238,6 +246,10 @@ Bootstrap::processRelations() {
 
     std::cout << "Processing relations ... ";
     long int total = queryraw->getCount("relations");
+    if (total == 0) {
+        std::cout << std::endl << "WARNING: relations table is empty." << std::endl;
+        return;
+    }
     long int count = 0;
     int num_chunks = total / page_size;
 
