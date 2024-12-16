@@ -245,7 +245,7 @@ QueryRaw::applyChange(const OsmWay &way) const
 
     // Get a Polygon or LineString geometry string depending on the Way
     std::stringstream ss;
-    if (way.refs.size() > 3 && (way.refs.front() == way.refs.back())) {
+    if (way.isClosed()) {
         tableName = &QueryRaw::polyTable;
         ss << std::setprecision(12) << bg::wkt(way.polygon);
     } else {
