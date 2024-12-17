@@ -570,6 +570,7 @@ threadOsmChange(OsmChangeTask osmChangeTask)
             for (auto wit = std::begin(change->ways); wit != std::end(change->ways); ++wit) {
                 osmobjects::OsmWay *way = wit->get();
 
+                // Skip if not priority or disabled
                 if (way->action != osmobjects::remove && !way->priority) {
                     continue;
                 }
