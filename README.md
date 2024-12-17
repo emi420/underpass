@@ -1,34 +1,42 @@
-![CI Build and Testing](https://github.com/hotosm/underpass/actions/workflows/tests.yml/badge.svg)
-![Doxygen](https://github.com/hotosm/underpass/actions/workflows/docs.yml/badge.svg)
-
 # Underpass
 
-Underpass is a customizable **data engine** that processes **mapping** data.
-
-It **updates a local copy of the OSM database** in near real-time, and provides customizable **statistics** and **validation** reports. It is designed to be **high performance** on modest hardware.
-
-## Demo
-
-We've deployed a basic demo that keeps a database up-to-date for (some country),
-rendering buildings and highlighting the ones identified as "un-squared":
-
-~[https://underpass.live](https://underpass.live)~ (currently unavailable, working on it)
-
-<img width="1160" alt="Screenshot 2024-06-05 at 15 51 57" src="https://github.com/hotosm/underpass/assets/1226194/8a95e518-a12f-45c3-b460-d74d81ca3cfe">
+Underpass **updates a local copy of the OSM database** in near real-time. 
+It is designed to be **high performance** on modest hardware.
 
 ## Getting started
 
-Check [the documentation](https://hotosm.github.io/underpass/)
+### Install dependencies
 
-## Project
+```
+sudo apt-get update \
+    && apt-get install -y software-properties-common \
+    && apt-get update && apt-get install -y \
+        libboost-dev \
+        autotools-dev \
+        swig \
+        pkg-config \
+        gcc \
+        build-essential \
+        ccache \
+        libboost-all-dev \
+        dejagnu \
+        libjemalloc-dev \
+        libxml++2.6-dev \
+        doxygen \
+        libgdal-dev \
+        libosmium2-dev \
+        libpqxx-dev \
+        postgresql \
+        libgumbo-dev \
+        librange-v3-dev
+```
+### Build
 
-Check the tasks board and roadmap [here](https://github.com/orgs/hotosm/projects/23)
-
-### Get involved!
-
-This is an exciting project, its core is made with C++ but it also includes a Python API and there are UI components for interacting and visualizing data.
-
-You can learn a lot contributing to Underpass, while helping the FOSS and mapping communities, get involved!
+```bash
+./autogen.sh && \
+  mkdir build && cd build && \ 
+  ../configure && make -j$(nproc) && sudo make install
+```
 
 ### License
 
