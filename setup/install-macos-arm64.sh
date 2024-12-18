@@ -35,10 +35,9 @@ echo "Setting up build ..."
 ./autogen.sh
 mkdir build ; cd build
 ../configure CXXFLAGS="-arch arm64 -g -O2" \
-    LDFLAGS="-L/opt/homebrew/lib -L/usr/local/lib -L/opt/homebrew/Cellar/boost@1.85/1.85.0_2/lib" \
-    CPPFLAGS="-I/opt/homebrew/include -I/usr/local/include -I/opt/homebrew/Cellar/boost@1.85/1.85.0_2/include" \
-    CXX="g++" \
-    --with-boost=/opt/homebrew/Cellar/boost@1.85/1.85.0_2
+    LDFLAGS="-L/opt/homebrew/lib -L/usr/local/lib" \
+    CPPFLAGS="-I/opt/homebrew/include" \
+    --with-boost=/opt/homebrew/Cellar/boost/1.87.0
 
 echo "Building ..."
 make -j$(nproc) && sudo make install

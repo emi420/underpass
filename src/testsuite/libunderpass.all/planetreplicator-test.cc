@@ -53,7 +53,7 @@ void testPath(underpassconfig::UnderpassConfig config) {
     planetreplicator::PlanetReplicator replicator;
     auto osmchange = replicator.findRemotePath(config, config.start_time);
     TestCO change;
-    if (boost::filesystem::exists(osmchange->filespec)) {
+    if (std::filesystem::exists(osmchange->filespec)) {
         change.readChanges(osmchange->filespec);
     } else {
         TestPlanet planet;

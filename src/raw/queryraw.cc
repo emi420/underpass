@@ -187,6 +187,8 @@ QueryRaw::applyChange(const OsmNode &node) const
         4326), tags = %s, timestamp = \'%s\', version = %d, \"user\" = \'%s\', uid = %d, changeset = %d WHERE r.version < %d;";
         boost::format fmt(format);
 
+        log_debug("Create or modify Node %1%", node.id);
+
         // osm_id
         fmt % node.id;
 
@@ -227,6 +229,7 @@ QueryRaw::applyChange(const OsmNode &node) const
     // If remove, then delete the object
     } else if (node.action == osmobjects::remove) {
         queries->push_back("DELETE FROM nodes WHERE osm_id = " + std::to_string(node.id) + ";");
+        log_debug("Delete Node %1%", node.id);
     }
 
     return queries;
@@ -241,19 +244,6 @@ std::shared_ptr<std::vector<std::string>>
 QueryRaw::applyChange(const OsmWay &way) const
 {
     auto queries = std::make_shared<std::vector<std::string>>();
-    std::string query;
-    const std::string* tableName;
-
-    // Get a Polygon or LineString geometry string depending on the Way
-    std::stringstream ss;
-    if (way.isClosed()) {
-        tableName = &QueryRaw::polyTable;
-        ss << std::setprecision(12) << bg::wkt(way.polygon);
-    } else {
-        tableName = &QueryRaw::lineTable;
-        ss << std::setprecision(12) << bg::wkt(way.linestring);
-    }
-    std::string geostring = ss.str();
 
     // Make sure we have what's needed to insert or update a Way:
     // - At least 2 points
@@ -265,9 +255,25 @@ QueryRaw::applyChange(const OsmWay &way) const
             (way.refs.front() == way.refs.back() && way.refs.size() == bg::num_points(way.polygon))
          ) {
 
+            std::string query;
+            const std::string* tableName;
+
+            // Get a Polygon or LineString geometry string depending on the Way
+            std::stringstream ss;
+            if (way.isClosed()) {
+                tableName = &QueryRaw::polyTable;
+                ss << std::setprecision(12) << bg::wkt(way.polygon);
+            } else {
+                tableName = &QueryRaw::lineTable;
+                ss << std::setprecision(12) << bg::wkt(way.linestring);
+            }
+            std::string geostring = ss.str();
+
             // Insert or update the full Way, including id, tags, refs, geometry, timestamp, version,
             // user, uid and changeset
             if (way.action != osmobjects::modify_geom) {
+
+                log_debug("Create or modify Way %1%", way.id);
 
                 query = "INSERT INTO " + *tableName + " AS r (osm_id, tags, refs, geom, timestamp, version, \"user\", uid, changeset) VALUES(";
                 std::string format = "%d, %s, %s, %s, \'%s\', %d, \'%s\', %d, %d) \
@@ -327,6 +333,8 @@ QueryRaw::applyChange(const OsmWay &way) const
                 // modified by a change on some referenced Node; the geometry of the Way will
                 // change but all other data (tags, version, etc) will remain the same.
 
+                log_debug("Modify geometry of Way %1%", way.id);
+
                 query = "UPDATE " + *tableName + " SET ";
                 std::string format = "geom=%s, timestamp=\'%s\' WHERE osm_id=%d;";
                 boost::format fmt(format);
@@ -351,6 +359,7 @@ QueryRaw::applyChange(const OsmWay &way) const
             // If the Way's geometry is a Polygon, remove all LineString from the LineStrings table.
             // This is for preventing duplicated Way geometries. For example, when the Way was a
             // LineString but it was then closed and converted to a Polygon.
+            log_debug("Delete Way %1% from table %2%", way.id, *tableName);
             std::string delquery = "DELETE FROM %s WHERE osm_id=%d;";
             boost::format delquery_fmt(delquery);
             if (tableName == &QueryRaw::polyTable) {
@@ -362,12 +371,10 @@ QueryRaw::applyChange(const OsmWay &way) const
             queries->push_back(delquery_fmt.str());
         }
     } else if (way.action == osmobjects::remove) {
-        // Delete a Way geometry and its references.
-        if (tableName == &QueryRaw::polyTable) {
-            queries->push_back("DELETE FROM " + QueryRaw::polyTable + " WHERE osm_id = " + std::to_string(way.id) + ";");
-        } else {
-            queries->push_back("DELETE FROM " + QueryRaw::lineTable + " WHERE osm_id = " + std::to_string(way.id) + ";");
-        }
+        // Delete a Way geometry
+        log_debug("Delete Way %1%", way.id);
+        queries->push_back("DELETE FROM " + QueryRaw::polyTable + " WHERE osm_id = " + std::to_string(way.id) + ";");
+        queries->push_back("DELETE FROM " + QueryRaw::lineTable + " WHERE osm_id = " + std::to_string(way.id) + ";");
     }
 
     return queries;
@@ -405,6 +412,8 @@ QueryRaw::applyChange(const OsmRelation &relation) const
                 std::string format = "%d, %s, %s, %s, \'%s\', %d, \'%s\', %d, %d) \
                 ON CONFLICT (osm_id) DO UPDATE SET tags = %s, refs = %s, geom = %s, timestamp = \'%s\', version = %d, \"user\" = \'%s\', uid = %d, changeset = %d WHERE r.version <= %d;";
                 boost::format fmt(format);
+
+                 log_debug("Create or modify Relation %1%", relation.id);
 
                 // osm_id
                 fmt % relation.id;
@@ -454,6 +463,8 @@ QueryRaw::applyChange(const OsmRelation &relation) const
                 // modified by a change on some referenced Way; the geometry of the Relation will
                 // change but all other data (tags, version, etc) will remain the same.
 
+                log_debug("Modify geometry of Relation %1%", relation.id);
+
                 query = "UPDATE relations SET ";
                 std::string format = "geom=%s, timestamp=\'%s\' WHERE osm_id=%d;";
                 boost::format fmt(format);
@@ -475,6 +486,7 @@ QueryRaw::applyChange(const OsmRelation &relation) const
             }
         }
     } else if (relation.action == osmobjects::remove) {
+        log_debug("Delete Relation %1%", relation.id);
         // Delete a Relation geometry and its references.
         queries->push_back("DELETE FROM relations WHERE osm_id = " + std::to_string(relation.id) + ";");
     }

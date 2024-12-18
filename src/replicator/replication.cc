@@ -119,7 +119,7 @@ StateFile::StateFile(const std::string &file, bool memory)
 
     // It's a disk file, so read it in.
     if (!memory) {
-        if (!boost::filesystem::exists(file)) {
+        if (!std::filesystem::exists(file)) {
                 log_error("%1%  doesn't exist!", file);
             return;
         }
@@ -296,7 +296,7 @@ Planet::downloadFile(const std::string &url, const std::string &destdir_base)
         file = readFile(local_file_path);
         // If local file doesn't work, remove it
         if (file.status == reqfile_t::localError) {
-            boost::filesystem::remove(local_file_path);
+            std::filesystem::remove(local_file_path);
         }
         return file;
     }
@@ -413,7 +413,7 @@ Planet::readFile(std::string &filespec) {
     RequestedFile file;
     file.data = std::make_shared<std::vector<unsigned char>>();
     try {
-        size = boost::filesystem::file_size(filespec);
+        size = std::filesystem::file_size(filespec);
     } catch (const std::exception &ex) {
         log_error("File %1% doesn't exist but should!: %2%", filespec, ex.what());
         file.status = reqfile_t::localError;
@@ -437,8 +437,8 @@ Planet::readFile(std::string &filespec) {
 void Planet::writeFile(RemoteURL &remote, std::shared_ptr<std::vector<unsigned char>> data) {
     std::string local_file_path = remote.destdir_base + remote.destdir;
     try {
-        if (!boost::filesystem::exists(local_file_path)) {
-            boost::filesystem::create_directories(local_file_path);
+        if (!std::filesystem::exists(local_file_path)) {
+            std::filesystem::create_directories(local_file_path);
         }
     } catch (boost::system::system_error ex) {
         log_error("Destdir corrupted!: %1%, %2%", local_file_path, ex.what());
@@ -453,7 +453,7 @@ void Planet::writeFile(RemoteURL &remote, std::shared_ptr<std::vector<unsigned c
 
 Planet::~Planet(void)
 {
-    ioc.reset(); // reset the I/O conhtext
+    ioc.restart(); // restart the I/O context
     // stream.shutdown();          // shutdown the socket used by the stream
 }
 
@@ -493,7 +493,7 @@ Planet::connectServer(const std::string &planet)
 {
     // Gracefully close the socket
     boost::system::error_code ec;
-    ioc.reset();
+    ioc.restart();
     ctx.set_verify_mode(ssl::verify_none);
     // Strip off the https part
     std::string tmp;

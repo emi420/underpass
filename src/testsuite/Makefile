@@ -110,7 +110,6 @@ subdir = src/testsuite
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/ax_boost_base.m4 \
 	$(top_srcdir)/m4/ax_boost_date_time.m4 \
-	$(top_srcdir)/m4/ax_boost_filesystem.m4 \
 	$(top_srcdir)/m4/ax_boost_iostreams.m4 \
 	$(top_srcdir)/m4/ax_boost_locale.m4 \
 	$(top_srcdir)/m4/ax_boost_log.m4 \

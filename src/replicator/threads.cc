@@ -441,13 +441,13 @@ threadOsmChange(OsmChangeTask osmChangeTask)
                 }
             } catch (std::exception &e) {
                 log_error("Couldn't parse: %1%", remote->filespec);
-                boost::filesystem::remove(remote->filespec);
+                std::filesystem::remove(remote->filespec);
                 std::cerr << e.what() << std::endl;
             }
 
         } catch (std::exception &e) {
             log_error("%1% is corrupted!", remote->filespec);
-            boost::filesystem::remove(remote->filespec);
+            std::filesystem::remove(remote->filespec);
             std::cerr << e.what() << std::endl;
         }
     }

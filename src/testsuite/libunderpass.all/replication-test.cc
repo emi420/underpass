@@ -68,7 +68,7 @@ struct TimeIt {
 
 using namespace boost::posix_time;
 using namespace boost::gregorian;
-using namespace boost::filesystem;
+using namespace std::filesystem;
 TestState runtest;
 
 class TestPlanet : public Planet {

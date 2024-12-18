@@ -271,7 +271,7 @@ class Planet {
     {
         // db->disconnect();           // close the database connection
         // db->close();                // close the database connection
-        ioc.reset();       // reset the I/O conhtext
+        ioc.restart();       // restart the I/O conhtext
         stream.shutdown(); // shutdown the socket used by the stream
         // FIXME: this should return a real value
         return false;
