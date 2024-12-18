@@ -40,7 +40,6 @@ Build-Depends: dpkg-dev (>= 1.13.19),
 	       libboost-timer-dev (>= 1.69),
 	       libboost-chrono-dev (>= 1.69),
 	       libboost-serialization-dev (>= 1.69),
-	       libboost-python-dev (>= 1.69),
 	       libglibmm-2.4-dev | libglibmm-2.6-dev,
 	       libgdal-dev (>= 3.0),
 	       libgumbo-dev,
@@ -52,7 +51,6 @@ Build-Depends: dpkg-dev (>= 1.13.19),
 	       openssl,
 	       libpqxx-7.6,
      	       libxml++2.6-dev | libxml++-3.0,
-	       libpython3-dev
 
 Package: underpass
 Architecture: any

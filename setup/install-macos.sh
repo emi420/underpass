@@ -25,7 +25,6 @@ brew install \
     pkg-config \
     openssl \
     protobuf \
-    boost-python3 \
     libxml++3 \
     libpqxx \
     gumbo-parser

@@ -53,8 +53,6 @@ using namespace boost::posix_time;
 using namespace boost::gregorian;
 
 #include "osm/osmobjects.hh"
-#include "stats/querystats.hh"
-
 
 // Forward declaration
 namespace geoutil {

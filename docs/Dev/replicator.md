@@ -27,7 +27,7 @@ library. *underpass* is the utility program that a uses the library.
 	-i [ --import ] arg   Initialize pgsnapshot database with datafile
 
 By default, *underpass* uses the last date entered into the OSM Stats
-datavase as the starting point. A different timestamp can also be
+database as the starting point. A different timestamp can also be
 specified using *--timestamp*. All data files downloaded can
 optionally be cached to disk, so furthur processing can use those and
 save on network time.

@@ -24,13 +24,10 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-#include "stats/querystats.hh"
 #include "utils/yaml.hh"
 #include "utils/log.hh"
 
 using namespace logger;
-
-using namespace querystats;
 
 TestState runtest;
 

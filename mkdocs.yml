@@ -1,19 +1,10 @@
 site_name: Underpass
-site_description: A customizable data engine that processes mapping data
-site_url: "https://underpass.hotosm.org"
+site_description: Underpass updates a local copy of the OSM database in near real-time.
+site_url: "https://github.com/emi420/underpass"
 
-repo_name: "hotosm/underpass"
-repo_url: "https://github.com/hotosm/underpass/"
+repo_name: "emi420/underpass"
+repo_url: "https://github.com/emi420/underpass"
 edit_uri: "edit/main/docs/"
-
-extra:
-  social:
-    - icon: "fontawesome/brands/github"
-      link: "https://github.com/hotosm/"
-    - icon: "fontawesome/brands/twitter"
-      link: "https://twitter.com/hotosm"
-    - icon: "fontawesome/solid/globe"
-      link: "https://www.hotosm.org"
 
 theme:
   name: material
@@ -64,23 +55,12 @@ nav:
   - Replication:
       - Run: Replication/Run.md
       - Advanced: Replication/Advanced.md
-  - API:
-      - Python (DB): API/PythonDB.md
-      - Python: API/Python.md
-      - REST: API/REST.md
-  - UI:
-      - Install: UI/Install.md
-      - UnderpassMap: UI/UnderpassMap.md
-      - UnderpassFeatureList: UI/UnderpassFeatureList.md
   - Developers:
       - Coding: Dev/coding.md
       - Debugging: Dev/debugging.md
       - ChangeFile: Dev/changefile.md
       - Data flow: Dev/dataflow.md
       - Engine: Dev/engine.md
-      - OSM Stats: Dev/osmstats.md
-      - Statistics: Dev/statistics.md
-      - Validation: Dev/validation.md
       - Replication: Dev/replication.md
       - Utility: Dev/utility.md
       - Chroots: Dev/chroots.md

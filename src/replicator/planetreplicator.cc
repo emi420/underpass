@@ -64,7 +64,6 @@ namespace opts = boost::program_options;
 #include "utils/log.hh"
 #include "underpassconfig.hh"
 
-using namespace querystats;
 using namespace underpassconfig;
 
 #define BOOST_BIND_GLOBAL_PLACEHOLDERS 1

@@ -27,13 +27,8 @@ CREATE TABLE IF NOT EXISTS public.changesets (
     created_at timestamptz,
     closed_at timestamptz,
     updated_at timestamptz,
-    added public.hstore,
-    modified public.hstore,
-    deleted public.hstore,
     hashtags text[],
     source text,
-    validated boolean,
-    quality integer,
     bbox public.geometry(MultiPolygon,4326)
 );
 ALTER TABLE ONLY public.changesets
@@ -41,23 +36,6 @@ ALTER TABLE ONLY public.changesets
 
 DROP TYPE IF EXISTS public.objtype;
 CREATE TYPE public.objtype AS ENUM ('node', 'way', 'relation');
-DROP TYPE IF EXISTS public.status;
-CREATE TYPE public.status AS ENUM ('notags', 'complete', 'incomplete', 'badvalue', 'correct', 'badgeom', 'orphan', 'overlapping', 'duplicate');
-
-CREATE TABLE IF NOT EXISTS public.validation (
-    osm_id int8,
-    uid int8,
-    changeset int8,
-    type public.objtype,
-    status public.status,
-    values text[],
-    source text,
-    version bigint,
-    timestamp timestamp with time zone,
-    location public.geometry(Geometry,4326)
-);
-ALTER TABLE ONLY public.validation
-    ADD CONSTRAINT validation_pkey PRIMARY KEY (osm_id, status, source);
 
 CREATE TABLE IF NOT EXISTS public.ways_poly (
     osm_id int8,
@@ -123,5 +101,4 @@ CREATE INDEX ways_poly_timestamp_idx ON public.ways_poly(timestamp DESC);
 CREATE INDEX ways_line_timestamp_idx ON public.ways_line(timestamp DESC);
 
 CREATE INDEX idx_changesets_hashtags ON public.changesets USING gin(hashtags);
-CREATE INDEX idx_osm_id_status ON public.validation (osm_id)
 

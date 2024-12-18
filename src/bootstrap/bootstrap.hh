@@ -17,16 +17,11 @@
 //     along with Underpass.  If not, see <https://www.gnu.org/licenses/>.
 //
 
-#include "validate/queryvalidate.hh"
 #include "raw/queryraw.hh"
 #include "underpassconfig.hh"
-#include "validate/validate.hh"
 #include <mutex>
 
-using namespace queryvalidate;
 using namespace queryraw;
-
-typedef std::shared_ptr<Validate>(plugin_t)();
 
 namespace bootstrap {
 
@@ -34,27 +29,7 @@ namespace bootstrap {
 /// \brief Represents a bootstrap task
 struct BootstrapTask {
     std::vector<std::string> query;
-    std::vector<std::string> osmquery;
     int processed = 0;
-};
-
-/// \struct BootstrapQueries
-/// \brief Represents a bootstrap queries list
-struct BootstrapQueries {
-    std::vector<std::string> underpass;
-    std::vector<std::string> osm;
-};
-
-struct WayTask {
-    int taskIndex;
-    std::shared_ptr<std::vector<BootstrapTask>> tasks;
-    std::shared_ptr<std::vector<OsmWay>> ways;
-};
-
-struct NodeTask {
-    int taskIndex;
-    std::shared_ptr<std::vector<BootstrapTask>> tasks;
-    std::shared_ptr<std::vector<OsmNode>> nodes;
 };
 
 struct RelationTask {
@@ -68,26 +43,17 @@ class Bootstrap {
     Bootstrap(void);
     ~Bootstrap(void){};
 
-    static const std::string polyTable;
-    static const std::string lineTable;
     static const underpassconfig::UnderpassConfig &config;
     
     void start(const underpassconfig::UnderpassConfig &config);
-    void processWays();
-    void processNodes();
     void processRelations();
 
-    // This thread get started for every page of way
-    void threadBootstrapWayTask(WayTask wayTask);
-    void threadBootstrapNodeTask(NodeTask nodeTask);
+    // This thread get started for every page of relations
     void threadBootstrapRelationTask(RelationTask relationTask);
-    BootstrapQueries allTasksQueries(std::shared_ptr<std::vector<BootstrapTask>> tasks);
+    std::shared_ptr<std::vector<std::string>> allTasksQueries(std::shared_ptr<std::vector<BootstrapTask>> tasks);
     
-    std::shared_ptr<Validate> validator;
-    std::shared_ptr<QueryValidate> queryvalidate;
     std::shared_ptr<QueryRaw> queryraw;
     std::shared_ptr<Pq> db;
-    std::shared_ptr<Pq> osmdb;
     bool norefs;
     unsigned int concurrency;
     unsigned int page_size;

@@ -1,9 +1,44 @@
-# Underpass documentation
+# Underpass
 
-## What's Underpass?
+Underpass **updates a local copy of the OSM database** in near real-time. 
+It is designed to be **high performance** on modest hardware.
 
-### Underpass is a customizable data engine that processes mapping data.
+## Getting started
 
-It can update a local copy of the OSM database in near real-time, and provides customizable statistics and validation reports. It is designed to be high performance on modest hardware.
+### Install dependencies
 
-<img src="img/demo1.png" />
+```
+sudo apt-get update \
+    && apt-get install -y software-properties-common \
+    && apt-get update && apt-get install -y \
+        libboost-dev \
+        autotools-dev \
+        swig \
+        pkg-config \
+        gcc \
+        build-essential \
+        ccache \
+        libboost-all-dev \
+        dejagnu \
+        libjemalloc-dev \
+        libxml++2.6-dev \
+        doxygen \
+        libgdal-dev \
+        libosmium2-dev \
+        libpqxx-dev \
+        postgresql \
+        libgumbo-dev \
+        librange-v3-dev
+```
+### Build
+
+```bash
+./autogen.sh && \
+  mkdir build && cd build && \ 
+  ../configure && make -j$(nproc) && sudo make install
+```
+
+### License
+
+Underpass is free software! you may use any Underpass project under the terms of
+the GNU General Public License (GPL) Version 3.

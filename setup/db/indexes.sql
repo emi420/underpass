@@ -12,5 +12,4 @@ CREATE INDEX ways_poly_timestamp_idx ON public.ways_poly(timestamp DESC);
 CREATE INDEX ways_line_timestamp_idx ON public.ways_line(timestamp DESC);
 
 CREATE INDEX idx_changesets_hashtags ON public.changesets USING gin(hashtags);
-CREATE INDEX idx_osm_id_status ON public.validation (osm_id)
 

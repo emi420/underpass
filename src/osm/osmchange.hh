@@ -49,7 +49,6 @@ using namespace boost::posix_time;
 using namespace boost::gregorian;
 #define BOOST_BIND_GLOBAL_PLACEHOLDERS 1
 
-#include "validate/validate.hh"
 #include "osm/osmobjects.hh"
 #include "osm/osmchange.hh"
 #include <ogr_geometry.h>
@@ -60,25 +59,6 @@ namespace osmchange {
 /// \enum osmtype_t
 /// The object types used by an OsmChange file
 typedef enum { empty, node, way, relation, member } osmtype_t;
-
-/// \class ChangeStats
-/// \brief These are per user statistics
-///
-/// This stores the calculated data from a change for a user,
-/// which later gets added to the database statistics.
-class ChangeStats {
-  public:
-    long changeset = 0;   ///< The ID of this change
-    long uid = 0;     ///< The User ID
-    std::string username; ///< The User Name
-    ptime created_at;     ///< The starting timestamp
-    ptime closed_at;      ///< The finished timestamp
-    std::map<std::string, int> added; ///< Array of added features
-    std::map<std::string, int> modified; ///< Array of modified features
-    std::map<std::string, int> deleted; ///< Array of deleted features
-    /// Dump internal data to the terminal, only for debugging
-    void dump(void);
-};
 
 /// \class OsmChange
 /// \brief This contains the data for a change
@@ -257,31 +237,12 @@ class OsmChangeFile
     /// Read an istream of the data and parse the XML
     bool readXML(std::istream &xml);
 
-    std::map<long, std::shared_ptr<ChangeStats>> userstats; ///< User statistics for this file
-
     std::list<std::shared_ptr<OsmChange>> changes;      ///< All the changes in this file
 
     std::map<double, point_t> nodecache;                ///< Cache nodes across multiple changesets
     
     std::map<long, std::shared_ptr<osmobjects::OsmWay>> waycache; ///< Cache ways across multiple changesets
 
-    /// Collect statistics for each user
-    std::shared_ptr<std::map<long, std::shared_ptr<ChangeStats>>>
-    collectStats(const multipolygon_t &poly);
-
-    /// Validate multiple nodes
-    std::shared_ptr<std::vector<std::shared_ptr<ValidateStatus>>>
-    validateNodes(const multipolygon_t &poly, std::shared_ptr<Validate> &plugin);
-
-    /// Validate multi ways
-    std::shared_ptr<std::vector<std::shared_ptr<ValidateStatus>>>
-    validateWays(const multipolygon_t &poly, std::shared_ptr<Validate> &plugin);
-
-    /// Scan tags for the proper values
-    std::shared_ptr<std::vector<std::string>>
-    scanTags(std::map<std::string, std::string> tags, osmchange::osmtype_t type);
-
-//    std::map<long, bool> priority;
     /// dump internal data, for debugging only
     void dump(void);
 

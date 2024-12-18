@@ -115,12 +115,10 @@ am__aclocal_m4_deps = $(top_srcdir)/m4/ax_boost_base.m4 \
 	$(top_srcdir)/m4/ax_boost_locale.m4 \
 	$(top_srcdir)/m4/ax_boost_log.m4 \
 	$(top_srcdir)/m4/ax_boost_program_options.m4 \
-	$(top_srcdir)/m4/ax_boost_python.m4 \
 	$(top_srcdir)/m4/ax_boost_serialization.m4 \
 	$(top_srcdir)/m4/ax_boost_system.m4 \
 	$(top_srcdir)/m4/ax_boost_thread.m4 \
-	$(top_srcdir)/m4/ax_boost_timer.m4 \
-	$(top_srcdir)/m4/ax_python_devel.m4 \
+	$(top_srcdir)/m4/ax_boost_timer.m4 \\
 	$(top_srcdir)/m4/gettext.m4 $(top_srcdir)/m4/host-cpu-c-abi.m4 \
 	$(top_srcdir)/m4/iconv.m4 $(top_srcdir)/m4/intlmacosx.m4 \
 	$(top_srcdir)/m4/lib-ld.m4 $(top_srcdir)/m4/lib-link.m4 \
@@ -238,10 +236,9 @@ BOOST_LDFLAGS = -L/usr/lib/x86_64-linux-gnu
 BOOST_LOCALE_LIB = -lboost_locale
 BOOST_LOG_LIB = -lboost_log
 BOOST_PROGRAM_OPTIONS_LIB = -lboost_program_options
-BOOST_PYTHON_LIB = 
 BOOST_SERIALIZATION_LIB = -lboost_serialization
 BOOST_SYSTEM_LIB = -lboost_system
-BOOST_THREAD_LIB = -lboost_thread -lpthread
+BOOST_THREAD_LIB = -lboost_thread_mt -lpthread
 BOOST_TIMER_LIB = -lboost_timer
 CC = gcc
 CCDEPMODE = depmode=gcc3

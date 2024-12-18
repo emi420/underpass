@@ -31,9 +31,6 @@ DISTCLEANFILES = docs/html docs/latex .lastmod
 MAINTAINERCLEANFILES = revno.h .lastmod
 ETCDIR = $(subst lib,etc,$(pkglibdir))
 
-SUBDIRS = \
-	src/validate
-
 lib_LTLIBRARIES = libunderpass.la
 instdir = /tmp
 
@@ -47,20 +44,15 @@ BOOST_LIBS = $(BOOST_DATE_TIME_LIB) \
 	$(BOOST_REGEX_LIB) \
 	$(BOOST_SERIALIZATION_LIB) \
 	$(BOOST_LOCALE_LIB) \
-	$(BOOST_TIMER_LIB) \
-	$(BOOST_PYTHON_LIB)
+	$(BOOST_TIMER_LIB)
 
-SQL_FILES = \
-	setup/db/underpass.sql
+SQL_FILES = setup/db/underpass.sql
 
 libunderpass_la_SOURCES = \
 	src/utils/log.cc src/utils/log.hh \
 	src/dsodefs.hh src/gettext.h \
 	src/underpassconfig.hh \
-	src/stats/querystats.cc src/stats/querystats.hh \
 	src/raw/queryraw.cc src/raw/queryraw.hh \
-	src/stats/statsconfig.hh src/stats/statsconfig.cc \
-	src/validate/queryvalidate.cc src/validate/queryvalidate.hh \
 	src/osm/changeset.cc src/osm/changeset.hh \
 	src/osm/osmchange.cc src/osm/osmchange.hh \
 	src/osm/osmobjects.cc src/osm/osmobjects.hh \
@@ -109,43 +101,17 @@ AM_CPPFLAGS = \
 # clutter to the output. This should only be enabled when doing performance tuning.
 	-DTIMING_DEBUG
 
-pkgdata_DATA = $(SQL_FILES) setup/db/setupdb.sh $(PYTHON_UTILS)
-
 EXTRA_DIST = \
 	$(SQL_FILES) \
-	$(PYTHON_UTILS) \
 	src/testsuite \
 	config/priority.geojson \
 	config/replicator/planetreplicator.yaml \
 	doc \
 	dist/debian \
-	dist/redhat \
 	utils
 
 
 DEJATOOL = libunderpass
-
-if ENABLE_PYTHON
-EXT := $(shell python3-config --extension-suffix)
-DIR := $(shell python3-config --configdir)
-noinst_LTLIBRARIES = underpass.la
-underpass_la_SOURCES = src/wrappers/python.cc $(libunderpass_la_SOURCES)
-underpass_la_LDFADD = $(BOOST_LIBS) libunderpass.la src/validate/libunderpass.la
-underpass_la_LDFLAGS = -module -avoid-version -no-undefined -rpath /usr/lib64/ src/validate/libunderpass.la $(BOOST_LIBS)
-PY_OBJECTS = $(libunderpass_la_OBJECTS:.lo=.o)
-# /usr/lib/python3.9/lib-dynload/underpass.cpython-39-x86_64-linux-gnu.so
-install-python: underpass.la
-	@if test x"$(prefix)" = x"/usr/lib" -a "$(shell whoami)" != "root"; then \
-	   echo "Need to be root!"; \
-	else \
-	   moddir=$(shell dirname $(DIR))/lib-dynload; \
-	   if test ! -e $${moddir}; then \
-	     $(MDIR_P) $${moddir}; \
-	   fi; \
-	   cp .libs/libunderpass.so $${moddir}/libunderpass$(EXT); \
-	fi
-
-endif
 
 if ENABLE_DOXYGEN
 apidoc:
@@ -156,7 +122,6 @@ install-data-hook:
 	$(MKDIR_P) $(DESTDIR)$(ETCDIR)
 	cp -rvp $(srcdir)/config/priority.geojson  $(DESTDIR)$(ETCDIR)/
 	cp -rvp $(srcdir)/config/replicator  $(DESTDIR)$(ETCDIR)/
-	cp -rvp $(srcdir)/config/stats  $(DESTDIR)$(ETCDIR)/
 	cp -rvp $(srcdir)/config/default.yaml  $(DESTDIR)$(ETCDIR)/
 	cp -rvp $(srcdir)/setup/service $(DESTDIR)/$(pkglibdir)
 	$(MKDIR_P) $(DESTDIR)$(pkglibdir)/../system
@@ -178,21 +143,17 @@ if ENABLE_PCH
 PCHFLAGS = \
         -I$(top_builddir) \
         -I$(top_srcdir)/src \
-        -I$(top_srcdir)/src/stats \
-	-I$(top_srcdir)/src/validate \
         -I$(top_srcdir)/src/data
 
 PCHHEADERS = \
         $(top_srcdir)/src/replicator/planetreplicator.hh \
-        $(top_srcdir)/src/stats/querystats.hh \
-	$(top_srcdir)/src/raw/queryraw.hh \
+        $(top_srcdir)/src/raw/queryraw.hh \
         $(top_srcdir)/src/replicator/replication.hh \
         $(top_srcdir)/src/osm/osmchange.hh \
         $(top_srcdir)/src/osm/changeset.hh \
         $(top_srcdir)/src/osm/osmobjects.hh \
-        $(top_srcdir)/src/validate/validate.hh \
         $(top_srcdir)/src/utils/geoutil.hh \
-	$(top_srcdir)/src/utils/geo.hh \
+        $(top_srcdir)/src/utils/geo.hh \
         $(top_srcdir)/src/replicator/threads.hh
 
 PCHOTHER = \
@@ -226,7 +187,6 @@ endif
 #
 # The rest of this file is only used to build snapshots and releases
 #
-include $(srcdir)/dist/redhat/rpm.am
 include $(srcdir)/dist/debian/deb.am
 
 NOW := $(shell date "+%Y%m%d")

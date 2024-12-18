@@ -78,7 +78,6 @@ using namespace boost::gregorian;
 #include <regex>
 
 #include "osm/changeset.hh"
-#include "stats/querystats.hh"
 
 #define BOOST_BIND_GLOBAL_PLACEHOLDERS 1
 
@@ -136,12 +135,9 @@ ChangeSetFile::areaFilter(const multipolygon_t &poly)
 #ifdef TIMING_DEBUG_X
     boost::timer::auto_cpu_timer timer("ChangeSetFile::areaFilter: took %w seconds\n");
 #endif
-    // log_debug("Pre filtering changeset size is %1%", changes.size());
     for (auto it = std::begin(changes); it != std::end(changes); it++) {
         ChangeSet *change = it->get();
         if (poly.empty()) {
-            // log_debug("Accepting changeset %1% as in priority area because area information is missing",
-            // change->id);
             change->priority = true;
             continue;
         }
@@ -150,21 +146,13 @@ ChangeSetFile::areaFilter(const multipolygon_t &poly)
         boost::geometry::append(change->bbox, point_t(change->min_lon, change->min_lat));
         boost::geometry::append(change->bbox, point_t(change->min_lon, change->max_lat));
         boost::geometry::append(change->bbox, point_t(change->max_lon, change->max_lat));
-        // point_t pt;
-        // boost::geometry::centroid(change->bbox, pt);
         if (!boost::geometry::intersects(change->bbox, poly)) {
-            // log_debug("Validating changeset %1% is not in a priority area", change->id);
-
             change->priority = false;
-
             changes.erase(it--);
         } else {
-            // log_debug("Validating changeset %1% is in a priority area", change->id);
             change->priority = true;
         }
     }
-    // log_debug("Post filtering changeset size is %1%",
-    // changeset->changes.size());
 }
 
 void
@@ -357,7 +345,6 @@ ChangeSetFile::on_start_element(const Glib::ustring &name,
         }
         // changes.back().dump();
     } else if (name == "tag") {
-        // We ignore most of the attributes, as they're not used for OSM stats.
         // Processing a tag requires multiple passes through the loop. The
         // two tags to look for are 'k' (keyword) and 'v' (value). So when
         // we see a key we want, we have to wait for the next iteration of

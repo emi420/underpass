@@ -65,7 +65,6 @@ namespace opts = boost::program_options;
 #include "bootstrap/bootstrap.hh"
 #include "underpassconfig.hh"
 
-using namespace querystats;
 using namespace underpassconfig;
 
 #define BOOST_BIND_GLOBAL_PLACEHOLDERS 1
@@ -118,9 +117,6 @@ main(int argc, char *argv[])
             ("changesets", "Changesets only")
             ("osmchanges", "OsmChanges only")
             ("debug,d", "Enable debug messages for developers")
-            ("disable-stats", "Disable statistics")
-            ("disable-validation", "Disable validation")
-            ("disable-raw", "Disable raw OSM data")
             ("norefs", "Disable refs (useful for non OSM data)")
             ("bootstrap", "Bootstrap data tables")
             ("silent", "Silent")
@@ -157,10 +153,6 @@ main(int argc, char *argv[])
     }
 
     // Database
-    if (vm.count("rawdb")) {
-        config.underpass_osm_db_url = vm["rawdb"].as<std::string>();
-    }
-
     if (vm.count("server")) {
         config.underpass_db_url = vm["server"].as<std::string>();
     }
@@ -185,17 +177,6 @@ main(int argc, char *argv[])
         }
     } else {
         config.concurrency = std::thread::hardware_concurrency();
-    }
-
-    // Features
-    if (vm.count("disable-validation")) {
-        config.disable_validation = true;
-    }
-    if (vm.count("disable-stats")) {
-        config.disable_stats = true;
-    }
-    if (vm.count("disable-raw")) {
-        config.disable_raw = true;
     }
 
     if (vm.count("timestamp") || vm.count("url") ||  vm.count("changeseturl")) {

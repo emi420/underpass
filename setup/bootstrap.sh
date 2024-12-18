@@ -90,24 +90,24 @@ then
         fi
 
         echo "Cleaning database ..."
-        PGPASSWORD=$PASS psql --host $HOST --user $USER --port $PORT $DB -c 'DROP TABLE IF EXISTS ways_poly; DROP TABLE IF EXISTS ways_line; DROP TABLE IF EXISTS nodes; DROP TABLE IF EXISTS way_refs; DROP TABLE IF EXISTS validation; DROP TABLE IF EXISTS changesets;'
+        PGPASSWORD=$PASS psql --host $HOST --user $USER --port $PORT $DB -c 'DROP TABLE IF EXISTS ways_poly; DROP TABLE IF EXISTS ways_line; DROP TABLE IF EXISTS nodes; DROP TABLE IF EXISTS way_refs; DROP TABLE IF EXISTS changesets;'
         PGPASSWORD=$PASS psql --host $HOST --user $USER --port $PORT $DB --file 'db/underpass.sql'
 
-        if "$localfiles";
-        then
-            echo "(Using local files)"
-        else
-            echo "Downloading updated map data from geofabrik.de ..."
-            wget https://download.geofabrik.de/$REGION/$COUNTRY-latest.osm.pbf
-            wget https://download.geofabrik.de/$REGION/$COUNTRY.poly
-        fi
+        # if "$localfiles";
+        # then
+        #     echo "(Using local files)"
+        # else
+        #     echo "Downloading updated map data from geofabrik.de ..."
+        #     wget https://download.geofabrik.de/$REGION/$COUNTRY-latest.osm.pbf
+        #     wget https://download.geofabrik.de/$REGION/$COUNTRY.poly
+        # fi
 
         echo "Importing data (this will take some time) ..."
         PGPASSWORD=$PASS osm2pgsql -H $HOST -U $USER -P $PORT -d $DB --extra-attributes --output=flex --style ./db/raw.lua $COUNTRY-latest.osm.pbf
         PGPASSWORD=$PASS psql --host $HOST --user $USER --port $PORT $DB < db/indexes.sql
 
         echo "Configuring Underpass ..."
-        python3 ../utils/poly2geojson.py $COUNTRY.poly
+        # python3 ../utils/poly2geojson.py $COUNTRY.poly
         if "$use_docker";
         then
             docker cp $COUNTRY.geojson underpass:/usr/local/etc/underpass/priority.geojson

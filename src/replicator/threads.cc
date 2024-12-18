@@ -76,9 +76,6 @@ using tcp = net::ip::tcp;         // from <boost/asio/ip/tcp.hpp>
 #include "utils/log.hh"
 #include "osm/changeset.hh"
 #include "osm/osmchange.hh"
-#include "stats/querystats.hh"
-#include "validate/queryvalidate.hh"
-#include "validate/validate.hh"
 #include "replicator/replication.hh"
 #include "raw/queryraw.hh"
 #include <jemalloc/jemalloc.h>
@@ -89,8 +86,6 @@ using tcp = net::ip::tcp;         // from <boost/asio/ip/tcp.hpp>
 std::mutex stream_mutex;
 
 using namespace logger;
-using namespace querystats;
-using namespace queryvalidate;
 using namespace queryraw;
 using namespace underpassconfig;
 
@@ -153,20 +148,11 @@ startMonitorChangesets(std::shared_ptr<replication::RemoteURL> &remote,
     assert(remote->frequency == frequency_t::changeset);
 
     auto db = std::make_shared<Pq>();
-    if (!db->connect(config.underpass_osm_db_url)) {
+    if (!db->connect(config.underpass_db_url)) {
         log_error("Could not connect to Underpass DB, aborting monitoring thread!");
         return;
     } else {
-        log_debug("Connected to database: %1%", config.underpass_osm_db_url);
-    }
-    auto querystats = std::make_shared<QueryStats>(db);
-
-    auto osmdb = std::make_shared<Pq>();
-    if (!osmdb->connect(config.underpass_osm_db_url)) {
-        log_error("Could not connect to Underpass DB, aborting monitoring thread!");
-        return;
-    } else {
-        log_debug("Connected to database: %1%", config.underpass_osm_db_url);
+        log_debug("Connected to database: %1%", config.underpass_db_url);
     }
 
     int cores = config.concurrency;
@@ -213,8 +199,7 @@ startMonitorChangesets(std::shared_ptr<replication::RemoteURL> &remote,
                 new_remote,
                 std::ref(planets.front()),
                 std::ref(poly),
-                std::ref(tasks),
-                std::ref(querystats)
+                std::ref(tasks)
             );
 
             boost::asio::post(pool, task);
@@ -225,9 +210,6 @@ startMonitorChangesets(std::shared_ptr<replication::RemoteURL> &remote,
         auto result = allTasksQueries(tasks);
         if (result->at(0).size() > 0) {
             db->query(result->at(0));
-        }
-        if (result->at(1).size() > 0) {
-            osmdb->query(result->at(1));
         }
 
         ptime now  = boost::posix_time::second_clock::universal_time();
@@ -274,23 +256,6 @@ startMonitorChanges(std::shared_ptr<replication::RemoteURL> &remote,
         return;
     }
 
-    std::string plugins;
-    if (boost::filesystem::exists("src/validate/.libs")) {
-        plugins = "src/validate/.libs";
-    } else {
-        plugins = PKGLIBDIR;
-    }
-    boost::dll::fs::path lib_path(plugins);
-    boost::function<plugin_t> creator;
-    try {
-        creator = boost::dll::import_alias<plugin_t>(lib_path / "libunderpass.so", "create_plugin", boost::dll::load_mode::append_decorations);
-        log_debug("Loaded plugin!");
-    } catch (std::exception &e) {
-        log_debug("Couldn't load plugin! %1%", e.what());
-        exit(0);
-    }
-    auto validator = creator();
-
 #ifdef MEMORY_DEBUG
     size_t sz, active1, active2;
 #endif    // JEMALLOC memory debugging
@@ -301,18 +266,7 @@ startMonitorChanges(std::shared_ptr<replication::RemoteURL> &remote,
     } else {
         log_debug("Connected to database: %1%", config.underpass_db_url);
     }
-    auto querystats = std::make_shared<QueryStats>(db);
-    auto queryvalidate = std::make_shared<QueryValidate>(db);
-
-    // Connect to the raw OSM database, which is separate
-    auto osmdb = std::make_shared<Pq>();
-    if (!osmdb->connect(config.underpass_osm_db_url)) {
-        log_error("Could not connect to raw OSM DB, aborting monitoring thread!");
-        return;
-    } else {
-        log_debug("Connected to database: %1%", config.underpass_osm_db_url);
-    }
-    auto queryraw = std::make_shared<QueryRaw>(osmdb);
+    auto queryraw = std::make_shared<QueryRaw>(db);
 
     int cores = config.concurrency;
 
@@ -361,10 +315,7 @@ startMonitorChanges(std::shared_ptr<replication::RemoteURL> &remote,
                 new_remote,
                 std::ref(planets.front()),
                 std::ref(poly),
-                std::ref(validator),
                 std::ref(tasks),
-                std::ref(querystats),
-                std::ref(queryvalidate),
                 std::ref(queryraw),
                 underpassConfig,
                 concurrentTasks - i
@@ -379,9 +330,6 @@ startMonitorChanges(std::shared_ptr<replication::RemoteURL> &remote,
         auto result = allTasksQueries(tasks);
         if (result->at(0).size() > 0) {
             db->query(result->at(0));
-        }
-        if (result->at(1).size() > 0) {
-            osmdb->query(result->at(1));
         }
 
         ptime now  = boost::posix_time::second_clock::universal_time();
@@ -419,8 +367,7 @@ void
 threadChangeSet(std::shared_ptr<replication::RemoteURL> &remote,
         std::shared_ptr<replication::Planet> &planet,
         const multipolygon_t &poly,
-        std::shared_ptr<std::vector<ReplicationTask>> tasks,
-        std::shared_ptr<QueryStats> &querystats)
+        std::shared_ptr<std::vector<ReplicationTask>> tasks)
 {
 #ifdef TIMING_DEBUG
     boost::timer::auto_cpu_timer timer("threadChangeSet: took %w seconds\n");
@@ -443,9 +390,6 @@ threadChangeSet(std::shared_ptr<replication::RemoteURL> &remote,
         }
         log_debug("ChangeSet last_closed_at: %1%", task.timestamp);
         changeset->areaFilter(poly);
-        for (auto cit = std::begin(changeset->changes); cit != std::end(changeset->changes); ++cit) {
-            task.query.push_back(querystats->applyChange(*cit->get()));
-        }
     }
     const std::lock_guard<std::mutex> lock(tasks_changeset_mutex);
     tasks->push_back(task);
@@ -461,10 +405,7 @@ threadOsmChange(OsmChangeTask osmChangeTask)
     auto remote = osmChangeTask.remote;
     auto planet = osmChangeTask.planet;
     auto poly = osmChangeTask.poly;
-    auto plugin = osmChangeTask.plugin;
     auto tasks = osmChangeTask.tasks;
-    auto querystats = osmChangeTask.querystats;
-    auto queryvalidate = osmChangeTask.queryvalidate;
     auto queryraw = osmChangeTask.queryraw;
     auto config = osmChangeTask.config;
     auto taskIndex = osmChangeTask.taskIndex;
@@ -516,136 +457,61 @@ threadOsmChange(OsmChangeTask osmChangeTask)
     // - Add indirectly modified ways to osmchanges
     // - Build ways polygon/linestring geometries using nodecache
     // - Build relation multipolyon/multilinestring geometries using waycache
-    if (!config->disable_raw) {
-        queryraw->buildGeometries(osmchanges, poly);
-    }
+    queryraw->buildGeometries(osmchanges, poly);
 
     // Filter data by priority polygon
     osmchanges->areaFilter(poly);
 
-    // Collect stats
-    if (!config->disable_stats) {
-        auto stats = osmchanges->collectStats(poly);
-        for (auto it = std::begin(*stats); it != std::end(*stats); ++it) {
-            if (it->second->added.size() == 0 && it->second->modified.size() == 0) {
+    // Raw data
+    for (auto it = std::begin(osmchanges->changes); it != std::end(osmchanges->changes); ++it) {
+        osmchange::OsmChange *change = it->get();
+
+        // Nodes
+        for (auto nit = std::begin(change->nodes); nit != std::end(change->nodes); ++nit) {
+            osmobjects::OsmNode *node = nit->get();
+
+            if (!node->priority) {
                 continue;
             }
-            task.query.push_back(querystats->applyChange(*it->second));
+
+            //  Update nodes, ignore new ones outside priority area
+            auto changes = queryraw->applyChange(*node);
+            for (auto it = changes->begin(); it != changes->end(); ++it) {
+                    task.query.push_back(*it);
+            }
         }
-    }
 
-    auto removed_nodes = std::make_shared<std::vector<long>>();
-    auto removed_ways = std::make_shared<std::vector<long>>();
-    auto removed_relations = std::make_shared<std::vector<long>>();
-    auto validation_removals = std::make_shared<std::vector<long>>();
+        // Ways
+        for (auto wit = std::begin(change->ways); wit != std::end(change->ways); ++wit) {
+            osmobjects::OsmWay *way = wit->get();
 
-    // Raw data and validation
-    if (!config->disable_validation || !config->disable_raw) {
-        for (auto it = std::begin(osmchanges->changes); it != std::end(osmchanges->changes); ++it) {
-            osmchange::OsmChange *change = it->get();
-
-            // Nodes
-            for (auto nit = std::begin(change->nodes); nit != std::end(change->nodes); ++nit) {
-                osmobjects::OsmNode *node = nit->get();
-
-                if (!node->priority) {
-                    continue;
-                }
-
-                // Remove deleted nodes from validation table
-                if (!config->disable_validation && node->action == osmobjects::remove) {
-                    removed_nodes->push_back(node->id);
-                }
-
-                //  Update nodes, ignore new ones outside priority area
-                if (!config->disable_raw) {
-                    auto changes = queryraw->applyChange(*node);
-                    for (auto it = changes->begin(); it != changes->end(); ++it) {
-                         task.query.push_back(*it);
-                    }
-                }
+            // Skip if not priority or disabled
+            if (way->action != osmobjects::remove && !way->priority) {
+                continue;
             }
 
-            // Ways
-            for (auto wit = std::begin(change->ways); wit != std::end(change->ways); ++wit) {
-                osmobjects::OsmWay *way = wit->get();
-
-                // Skip if not priority or disabled
-                if (way->action != osmobjects::remove && !way->priority) {
-                    continue;
-                }
-
-                // Remove deleted ways from validation table
-                if (!config->disable_validation && way->action == osmobjects::remove) {
-                    removed_ways->push_back(way->id);
-                }
-
-                //  Update ways, ignore new ones outside priority area
-                if (!config->disable_raw) {
-                    auto changes = queryraw->applyChange(*way);
-                    for (auto it = changes->begin(); it != changes->end(); ++it) {
-                        task.query.push_back(*it);
-                    }
-                }
+            //  Update ways, ignore new ones outside priority area
+            auto changes = queryraw->applyChange(*way);
+            for (auto it = changes->begin(); it != changes->end(); ++it) {
+                task.query.push_back(*it);
             }
+        }
 
-            // Relations
-            for (auto rit = std::begin(change->relations); rit != std::end(change->relations); ++rit) {
-                osmobjects::OsmRelation *relation = rit->get();
+        // Relations
+        for (auto rit = std::begin(change->relations); rit != std::end(change->relations); ++rit) {
+            osmobjects::OsmRelation *relation = rit->get();
 
-                if (relation->action != osmobjects::remove && !relation->priority) {
-                    // if (!relation->priority) {
-                    //     std::cout << "<Relation " << relation->id << "> NOT PRIORITY" << std::endl;
-                    // }
-                    continue;
-                }
-                // Remove deleted relations from validation table
-                // if (!config->disable_validation && relation->action == osmobjects::remove) {
-                //     removed_relations->push_back(relation->id);
-                // }
-
-                //  Update relations, ignore new ones outside priority area
-                if (!config->disable_raw) {
-                    auto changes = queryraw->applyChange(*relation);
-                    for (auto it = changes->begin(); it != changes->end(); ++it) {
-                        task.query.push_back(*it);
-                    }
-                }
+            if (relation->action != osmobjects::remove && !relation->priority) {
+                continue;
+            }
+            //  Update relations, ignore new ones outside priority area
+            auto changes = queryraw->applyChange(*relation);
+            for (auto it = changes->begin(); it != changes->end(); ++it) {
+                task.query.push_back(*it);
             }
         }
     }
 
-    // Update validation table
-    if (!config->disable_validation) {
-
-        // Validate ways
-        auto wayval = osmchanges->validateWays(poly, plugin);
-        auto wayval_queries = queryvalidate->ways(wayval, validation_removals);
-        for (auto itt = wayval_queries->begin(); itt != wayval_queries->end(); ++itt) {
-            task.query.push_back(*itt);
-        }
-
-        // Validate nodes
-        auto nodeval = osmchanges->validateNodes(poly, plugin);
-        auto nodeval_queries = queryvalidate->nodes(nodeval, validation_removals);
-        for (auto itt = nodeval_queries->begin(); itt != nodeval_queries->end(); ++itt) {
-            task.query.push_back(*itt);
-        }
-
-        // Validate relations
-        // auto relval = osmchanges->validateRelations(poly, plugin);
-        // auto relval_queries = queryvalidate->relations(relval, validation_removals);
-        // for (auto itt = relval_queries->begin(); itt != relval_queries->end(); ++itt) {
-        //     task.query.push_back(*itt);
-        // }
-
-        // Remove validation entries for removed objects
-        task.query.push_back(*queryvalidate->updateValidation(validation_removals));
-        task.query.push_back(*queryvalidate->updateValidation(removed_nodes));
-        task.query.push_back(*queryvalidate->updateValidation(removed_ways));
-        // task.query += queryvalidate->updateValidation(removed_relations);
-
-    }
     const std::lock_guard<std::mutex> lock(tasks_change_mutex);
     (*tasks)[taskIndex] = task;
 

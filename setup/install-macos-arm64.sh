@@ -24,23 +24,21 @@ brew install \
     pkg-config \
     openssl \
     protobuf \
-    boost-python3 \
     libxml++3 \
     libpqxx \
     gumbo-parser \
-    boost
+    boost@1.85
+
 cd ..
 
 echo "Setting up build ..."
 ./autogen.sh
-mkdir build && cd build
+mkdir build ; cd build
 ../configure CXXFLAGS="-arch arm64 -g -O2" \
-    LDFLAGS="-L/opt/homebrew/lib -L/usr/local/lib" \
-    CPPFLAGS="-I/opt/homebrew/include -I/usr/local/include" \
+    LDFLAGS="-L/opt/homebrew/lib -L/usr/local/lib -L/opt/homebrew/Cellar/boost@1.85/1.85.0_2/lib" \
+    CPPFLAGS="-I/opt/homebrew/include -I/usr/local/include -I/opt/homebrew/Cellar/boost@1.85/1.85.0_2/include" \
     CXX="g++" \
-    --enable-python=no \
-    --with-boost=/opt/local/libexec/boost/1.86.0_2
-
+    --with-boost=/opt/homebrew/Cellar/boost@1.85/1.85.0_2
 
 echo "Building ..."
 make -j$(nproc) && sudo make install

@@ -50,6 +50,7 @@ using namespace pq;
 using namespace logger;
 using namespace osmobjects;
 using namespace osmchange;
+namespace bg = boost::geometry;
 
 /// \namespace queryraw
 namespace queryraw {

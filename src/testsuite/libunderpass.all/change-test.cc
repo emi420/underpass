@@ -27,7 +27,6 @@
 #include "utils/log.hh"
 #include "osm/changeset.hh"
 #include "osm/osmchange.hh"
-#include "stats/querystats.hh"
 #include "replicator/replication.hh"
 
 #include "boost/date_time/gregorian/gregorian.hpp"

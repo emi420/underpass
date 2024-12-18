@@ -25,9 +25,6 @@ You might run the `underpass` command with the following options:
   -c [ --concurrency ] arg Concurrency
   --changesets             Changesets only
   --osmchanges             OsmChanges only
-  --disable-stats          Disable statistics
-  --disable-validation     Disable validation
-  --disable-raw            Disable raw OSM data
   --bootstrap              Bootstrap data tables
 ```
 

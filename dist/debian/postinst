@@ -86,16 +86,6 @@ if [ "$1" = "configure" ]; then
     fi
     
     prompt "$(declare -p config)"
-    
-    # For the Galaxy OSM Stats database
-    config['title']="Underpass"
-    config['prefix']="UNDERPASS"
-    config['dbhost']="localhost"
-    config['dbuser']="underpass"
-    config['dbpass']="underpass"
-    config['dbname']="underpass"
-    
-    prompt "$(declare -p config)"
-
+        
 fi
 

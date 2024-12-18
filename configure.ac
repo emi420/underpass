@@ -164,7 +164,6 @@ dnl range-v3
 CPPFLAGS+=" $(pkg-config --cflags libpqxx)"
 CPPFLAGS+=" $(pkg-config --cflags gumbo)"
 CPPFLAGS+=" $(pkg-config --cflags ompi)"
-CPPFLAGS+=" $(python3-config --cflags)"
 
 dnl This is a C++ project only
 AC_LANG_PUSH(C++)
@@ -183,7 +182,7 @@ LIBS+=" $(pkg-config --libs openssl)"
 LIBS+=" $(pkg-config --libs gumbo)"
 LIBS+=" $(pkg-config --libs zlib)"
 LIBS+=" $(pkg-config --libs ompi)"
-LIBS+=" $(python3-config --libs)"
+
 if test x"${build_libxml}" = x"yes"; then
 dnl Debian Buster and Ubuntu Focal ship 2.6, Fedora ships 3,.0
 dnl The version in Focal is broken, so either build libxml++-3.0
@@ -228,20 +227,6 @@ AC_LANG_POP(C++)
 CPPFLAGS+=" $(pkg-config --cflags gdal)"
 LIBS+=" $(pkg-config --libs gdal)"
 
-AM_PATH_PYTHON([3])
-
-AC_ARG_ENABLE([python],
-  AS_HELP_STRING([--enable-python],[Enable Python binding]), [], [enable_python=yes])
-
-if test x"${enable_python}" = x"yes"; then
-  LIBS+=" $(python3-config --libs)"
-  LIBS+=" $(python3-config --embed)"
-  CPPFLAGS+=" $(python3-config --cflags)"
-  AX_BOOST_PYTHON
-  AC_DEFINE(USE_PYTHON, [1], [Enable Python binding])
-fi
-AM_CONDITIONAL(ENABLE_PYTHON, [ test x"${enable_python}" != x"no" ])
-
 AC_PATH_PROG(DOXYGEN, doxygen)
 AM_CONDITIONAL(ENABLE_DOXYGEN, [ test x"$DOXYGEN" != x ])
 if test x"$DOXYGEN" != x; then
@@ -272,20 +257,14 @@ AM_CONDITIONAL([ENABLE_PCH], [test x"$enable_pch" != x"no"])
 PCH_FLAGS="-include all-includes.h -Winvalid-pch"
 AC_SUBST(PCH_FLAGS)
 
-AM_GNU_GETTEXT([external])
-AM_CONDITIONAL([HAS_GETTEXT], [test x"$gt_use_preinstalled_gnugettext" != x"no"])
-AC_SUBST([POMAKEFILEDEPS])
-
 SRCDIR=${srcdir}
 AC_SUBST(SRCDIR)
 
 AC_CONFIG_FILES([
 Makefile
 docs/Doxyfile
-src/validate/Makefile
 src/testsuite/Makefile
 src/testsuite/libunderpass.all/Makefile
-dist/redhat/underpass.spec
 ])
 
 AC_OUTPUT

@@ -25,14 +25,10 @@ check_PROGRAMS = \
 	pq-test \
 	change-test \
 	yaml-test \
-	statsconfig-test \
 	planetreplicator-test \
 	geo-test \
 	areafilter-test \
 	hashtags-test \
-	stats-test \
-	val-test \
-	val-unsquared-test \
 	raw-test \
 	test-playground
 
@@ -49,8 +45,7 @@ BOOST_LIBS = \
 	$(BOOST_IOSTREAMS_LIB) \
 	$(BOOST_THREAD_LIB) \
 	$(BOOST_LOCALE_LIB) \
-	$(BOOST_TIMER_LIB) \
-	$(BOOST_PYTHON_LIB)
+	$(BOOST_TIMER_LIB)
 
 AM_CXXFLAGS = \
 	-fPIC \
@@ -76,16 +71,6 @@ geo_test_LDFLAGS = -L../..
 geo_test_CPPFLAGS = -DDATADIR=\"$(TOPSRC)\" -I$(TOPSRC)
 geo_test_LDADD = -lpqxx -lunderpass $(BOOST_LIBS)
 
-val_test_SOURCES = val-test.cc
-val_test_LDFLAGS = -L../..
-val_test_CPPFLAGS = -DDATADIR=\"$(TOPSRC)\" -I$(TOPSRC)
-val_test_LDADD = -lpqxx -lunderpass $(BOOST_LIBS) ../../validate/defaultvalidation.lo ../../validate/geospatial.lo ../../validate/semantic.lo
-
-val_unsquared_test_SOURCES = val-unsquared-test.cc
-val_unsquared_test_LDFLAGS = -L../..
-val_unsquared_test_CPPFLAGS = -DDATADIR=\"$(TOPSRC)\" -I$(TOPSRC)
-val_unsquared_test_LDADD = -lpqxx -lunderpass $(BOOST_LIBS) ../../validate/defaultvalidation.lo ../../validate/geospatial.lo ../../validate/semantic.lo
-
 raw_test_SOURCES = raw-test.cc
 raw_test_LDFLAGS = -L../..
 raw_test_CPPFLAGS = -DDATADIR=\"$(TOPSRC)\" -I$(TOPSRC)
@@ -96,17 +81,6 @@ raw_test_LDADD = -lpqxx -lunderpass $(BOOST_LIBS)
 #replication_test_LDFLAGS = -L../..
 #rplication_test_CPPFLAGS = -DDATADIR=\"$(TOPSRC)\" -I$(TOPSRC)
 #replication_test_LDADD = -lpqxx -lunderpass $(BOOST_LIBS)
-
-# Test the OSM Stats class
-stats_test_SOURCES = stats-test.cc
-stats_test_LDFLAGS = -L../..
-stats_test_CPPFLAGS = -DDATADIR=\"$(TOPSRC)\" -I$(TOPSRC)
-stats_test_LDADD = -lpqxx -lunderpass $(BOOST_LIBS)
-
-# Test the OSM StatsConfig
-statsconfig_test_SOURCES = statsconfig-test.cc
-statsconfig_test_LDFLAGS = -L../..
-statsconfig_test_LDADD = -lpqxx -lunderpass $(BOOST_LIBS)
 
 # Test the PlanetReplicator class
 planetreplicator_test_SOURCES = planetreplicator-test.cc
@@ -140,10 +114,6 @@ CLEANFILES = \
 	pq-test.log \
 	change-test.log \
 	geo-test.log \
-	stats-test.log \
-	val-test.log \
-	val-unsquared-test \
-    statsconfig-test.log \
 	planetreplicator-test.log \
 	areafilter-test.log \
 	hashtags-test.log \
