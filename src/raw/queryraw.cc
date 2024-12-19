@@ -359,12 +359,13 @@ QueryRaw::applyChange(const OsmWay &way) const
             // If the Way's geometry is a Polygon, remove all LineString from the LineStrings table.
             // This is for preventing duplicated Way geometries. For example, when the Way was a
             // LineString but it was then closed and converted to a Polygon.
-            log_debug("Delete Way %1% from table %2%", way.id, *tableName);
             std::string delquery = "DELETE FROM %s WHERE osm_id=%d;";
             boost::format delquery_fmt(delquery);
             if (tableName == &QueryRaw::polyTable) {
+                log_debug("Delete Way %1% from table %2%", way.id, QueryRaw::lineTable);
                 delquery_fmt % QueryRaw::lineTable;
             } else {
+                log_debug("Delete Way %1% from table %2%", way.id, QueryRaw::polyTable);
                 delquery_fmt % QueryRaw::polyTable;
             }
             delquery_fmt % way.id;

@@ -428,7 +428,7 @@ Planet::readFile(std::string &filespec) {
     read(fd, buf, size);
     // FIXME: it would be nice to avoid this copy
     std::copy(buf, buf + size, file.data->begin());
-    delete buf;
+    delete[] buf;
     close(fd);
     file.status = reqfile_t::success;
     return file;

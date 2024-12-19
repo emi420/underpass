@@ -93,26 +93,14 @@ using namespace underpassconfig;
 
 namespace replicatorthreads {
 
-std::shared_ptr<std::vector<std::string>>
+std::string
 allTasksQueries(std::shared_ptr<std::vector<ReplicationTask>> tasks) {
-    auto queries = std::make_shared<std::vector<std::string>>();
-    std::string osmsql;
-    std::string unsql;
+    std::string queries;
     for (auto it = tasks->begin(); it != tasks->end(); ++it) {
         for (auto itt = it->query.begin(); itt != it->query.end(); ++itt) {
-            if (itt->rfind(';') != itt->size() - 1) {
-                log_debug("HAS SEMI-COLON: %1%", *itt);
-                log_debug("HAS SEMI-COLON: %1% %2%", itt->size() - 1, itt->rfind(';'));
-            }
-            if (itt->find(" nodes ") != std::string::npos || itt->find(" ways_poly ") != std::string::npos || itt->find(" ways_line ") != std::string::npos ||  itt->find(" relations ") != std::string::npos) {
-                unsql.append(*itt);
-            } else {
-                osmsql.append(*itt);
-            }
+            queries.append(*itt);
         }
     }
-    queries->push_back(osmsql);
-    queries->push_back(unsql);
     return queries;
 }
 
@@ -207,10 +195,7 @@ startMonitorChangesets(std::shared_ptr<replication::RemoteURL> &remote,
             remote->updateDomain(planets.front()->domain);
         }
         pool.join();
-        auto result = allTasksQueries(tasks);
-        if (result->at(0).size() > 0) {
-            db->query(result->at(0));
-        }
+        db->query(allTasksQueries(tasks));
 
         ptime now  = boost::posix_time::second_clock::universal_time();
         last_task = getClosest(tasks, now);
@@ -327,10 +312,7 @@ startMonitorChanges(std::shared_ptr<replication::RemoteURL> &remote,
             boost::asio::post(pool, task);
         } while (--i);
         pool.join();
-        auto result = allTasksQueries(tasks);
-        if (result->at(0).size() > 0) {
-            db->query(result->at(0));
-        }
+        db->query(allTasksQueries(tasks));
 
         ptime now  = boost::posix_time::second_clock::universal_time();
         last_task = getClosest(tasks, now);

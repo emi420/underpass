@@ -140,12 +140,12 @@ do
        echo "Running xml-i18n-toolize --copy --force --automake..."
        xml-i18n-toolize --copy --force --automake
      fi
-#       if grep "^AC_PROG_LIBTOOL" configure.ac >/dev/null; then
-# 	if test -z "$NO_LIBTOOLIZE" ; then 
-# 	  echo "Running libtoolize --force --copy ..."
-# 	  ${LIBTOOLIZE:-libtoolize} --force --copy
-# 	fi
-#       fi
+      if grep "^AC_PROG_LIBTOOL" configure.ac >/dev/null; then
+	if test -z "$NO_LIBTOOLIZE" ; then
+	  echo "Running libtoolize --force --copy ..."
+	  ${LIBTOOLIZE:-libtoolize} --force --copy
+	fi
+      fi
       echo "Running aclocal $aclocalinclude ..."
       ${ACLOCAL:-aclocal} ${aclocalinclude}
       if grep "^A[CM]_CONFIG_HEADER" configure.ac >/dev/null; then

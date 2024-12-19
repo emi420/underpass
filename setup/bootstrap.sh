@@ -107,7 +107,12 @@ then
         PGPASSWORD=$PASS psql --host $HOST --user $USER --port $PORT $DB < db/indexes.sql
 
         echo "Configuring Underpass ..."
-        # python3 ../utils/poly2geojson.py $COUNTRY.poly
+
+        if [ -z "$localfiles" ];
+        then
+            python3 ../utils/poly2geojson.py $COUNTRY.poly
+        fi
+
         if "$use_docker";
         then
             docker cp $COUNTRY.geojson underpass:/usr/local/etc/underpass/priority.geojson

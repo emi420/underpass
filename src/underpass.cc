@@ -119,8 +119,7 @@ main(int argc, char *argv[])
             ("debug,d", "Enable debug messages for developers")
             ("norefs", "Disable refs (useful for non OSM data)")
             ("bootstrap", "Bootstrap data tables")
-            ("silent", "Silent")
-            ("rawdb", opts::value<std::string>(), "Database URI for raw OSM data");
+            ("silent", "Silent");
         // clang-format on
 
         opts::store(opts::command_line_parser(argc, argv).options(desc).positional(p).run(), vm);
