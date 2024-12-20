@@ -43,6 +43,7 @@
 
 #include <unistd.h> // for getpid
 
+
 namespace clocktime {
 /// Wall clock timer, returns current POSIX time in milliseconds.
 DSOEXPORT std::uint64_t getTicks();
@@ -436,9 +437,10 @@ LogFile::openLog(const std::string &filespec) {
         _state = CLOSED;
     }
 
-    if (std::filesystem::exists(filespec)) {
-        std::filesystem::resize_file(filespec, 0);
-    }
+    //if (fs::exists(filespec)) {
+    //    fs::resize_file(filespec, 0);
+    //}
+
     // FIXME: Append, don't truncate, the log file
     _outstream.open(filespec, std::ios::app | std::ios::out); // ios::out
     if (_outstream.fail()) {
