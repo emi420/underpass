@@ -26,9 +26,6 @@ libtool
 Makefile.in
 py-compile
 docs/html
-infra/.terraform
-infra/.terraform.lock
-infra/.terraform.lock.hcl
 ChangeLog
 NEWS
 README
@@ -43,4 +40,3 @@ unconfig.h.in
 **/__pycache__/
 .vscode
 data
-data_osm
