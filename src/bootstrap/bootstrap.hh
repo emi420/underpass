@@ -32,6 +32,13 @@ struct BootstrapTask {
     int processed = 0;
 };
 
+struct WayTask {
+    int taskIndex;
+    std::shared_ptr<std::vector<BootstrapTask>> tasks;
+    std::shared_ptr<std::vector<OsmWay>> ways;
+};
+
+
 struct RelationTask {
     int taskIndex;
     std::shared_ptr<std::vector<BootstrapTask>> tasks;
@@ -47,9 +54,11 @@ class Bootstrap {
     
     void start(const underpassconfig::UnderpassConfig &config);
     void processRelations();
+    void processWays(const std::string &tableName);
 
     // This thread get started for every page of relations
     void threadBootstrapRelationTask(RelationTask relationTask);
+    void threadBootstrapWayTask(WayTask wayTask);
     std::shared_ptr<std::vector<std::string>> allTasksQueries(std::shared_ptr<std::vector<BootstrapTask>> tasks);
     
     std::shared_ptr<QueryRaw> queryraw;

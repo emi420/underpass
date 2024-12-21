@@ -98,19 +98,7 @@ tables.rels = osm2pgsql.define_table{
     }
 }
 
--- Returns true if there are no tags left.
-function clean_tags(tags)
-    tags.odbl = nil
-    -- tags.created_by = nil
-    tags['source:ref'] = nil
-    return next(tags) == nil
-end
-
 function osm2pgsql.process_node(object)
-
-    if clean_tags(object.tags) then
-        return
-    end
 
     tables.nodes:insert({
         uid = object.uid,
@@ -124,9 +112,6 @@ function osm2pgsql.process_node(object)
 end
 
 function osm2pgsql.process_way(object)
-    if clean_tags(object.tags) then
-        return
-    end
  
     if object.is_closed and #object.nodes>3 then
         tables.ways_poly:insert({
@@ -156,9 +141,7 @@ function osm2pgsql.process_way(object)
 end
 
 function osm2pgsql.process_relation(object)
-    if clean_tags(object.tags) then
-        return
-    end
+
     if object.tags.type == 'multipolygon' or object.tags.type == 'boundary' then
         tables.rels:insert({
             uid = object.uid,
