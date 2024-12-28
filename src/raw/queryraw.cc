@@ -180,7 +180,7 @@ QueryRaw::applyChange(const OsmNode &node) const
     auto queries = std::make_shared<std::vector<std::string>>();
 
     // If create or modify, then insert or update
-    if (node.action == osmobjects::create || node.action == osmobjects::modify) {
+    if ((node.action == osmobjects::create || node.action == osmobjects::modify)) {
         std::string query = "INSERT INTO nodes AS r (osm_id, geom, tags, timestamp, version, \"user\", uid, changeset) VALUES(";
         std::string format = "%d, ST_GeomFromText(\'%s\', 4326), %s, \'%s\', %d, \'%s\', %d, %d \
         ) ON CONFLICT (osm_id) DO UPDATE SET  geom = ST_GeomFromText(\'%s\', \
@@ -575,8 +575,8 @@ QueryRaw::getWaysByIds(std::string &waysIds, std::map<long, std::shared_ptr<osmo
     boost::timer::auto_cpu_timer timer("getWaysByIds(waysIds, waycache): took %w seconds\n");
 #endif
     // Get Ways and it's geometries (Polygon and LineString)
-    std::string waysQuery = "SELECT distinct(osm_id), ST_AsText(geom, 4326), 'polygon' AS type FROM ways_poly wp WHERE osm_id = any(ARRAY[" + waysIds + "]) ";
-    waysQuery += "UNION SELECT distinct(osm_id), ST_AsText(geom, 4326), 'linestring' AS type FROM ways_line wp WHERE osm_id = any(ARRAY[" + waysIds + "]);";
+    std::string waysQuery = "SELECT distinct(osm_id), ST_AsText(geom, 4326), 'polygon' AS type, refs FROM ways_poly wp WHERE osm_id = any(ARRAY[" + waysIds + "]) ";
+    waysQuery += "UNION SELECT distinct(osm_id), ST_AsText(geom, 4326), 'linestring' AS type, refs FROM ways_line wp WHERE osm_id = any(ARRAY[" + waysIds + "]);";
     auto ways_result = dbconn->query(waysQuery);
     if (ways_result.size() == 0) {
         log_debug("No results returned!");
@@ -590,12 +590,20 @@ QueryRaw::getWaysByIds(std::string &waysIds, std::map<long, std::shared_ptr<osmo
         auto way = std::make_shared<OsmWay>();
         auto type = (*way_it)[2].as<std::string>();
         way->id = (*way_it)[0].as<long>();
-        if (type == "polygon") {
-            bg::read_wkt((*way_it)[1].as<std::string>(), way->polygon);
-        } else {
-            bg::read_wkt((*way_it)[1].as<std::string>(), way->linestring);
+        auto geom = (*way_it)[1];
+        if (!geom.is_null()) {
+            if (type == "polygon") {
+                bg::read_wkt((*way_it)[1].as<std::string>(), way->polygon);
+            } else {
+                bg::read_wkt((*way_it)[1].as<std::string>(), way->linestring);
+            }
+            auto refs = (*way_it)[3];
+            if (!refs.is_null()) {
+                std::string refs_str = refs.as<std::string>();
+                way->refs = arrayStrToVector(refs_str);
+            }
+            waycache.insert(std::pair(way->id, std::make_shared<osmobjects::OsmWay>(*way)));
         }
-        waycache.insert(std::pair(way->id, std::make_shared<osmobjects::OsmWay>(*way)));
     }
 }
 
@@ -603,8 +611,8 @@ QueryRaw::getWaysByIds(std::string &waysIds, std::map<long, std::shared_ptr<osmo
 // all objects (Nodes, Ways and Realations), including all indirectly modified objects.
 //
 // Incomplete geometries happens all the time on Ways and Relations because the data for
-// they geometries (coordinates) can be not present on the OsmChange file. For example
-// if the tags of a Way are modified, but not it's references, only the tag information
+// their geometries (coordinates) can be not present on the OsmChange file. For example
+// if the tags of a Way are modified, but not its references, only the tag information
 // will be on the OsmChange file, but not the coordinates for the referenced Nodes.
 //
 // An indirectly modified object is the one whose geometry was modified by a modification
@@ -630,6 +638,10 @@ void QueryRaw::buildGeometries(std::shared_ptr<OsmChangeFile> osmchanges, const 
         for (auto wit = std::begin(change->ways); wit != std::end(change->ways); ++wit) {
             OsmWay *way = wit->get();
             if (way->action != osmobjects::remove) {
+
+                if (way->action == osmobjects::modify) {
+                    modifiedWaysIds += std::to_string(way->id) + ",";
+                }
 
                 // Save referenced Nodes ids for later use. The geometries of these
                 // Nodes will be needed later when building geometries for Ways
@@ -737,7 +749,7 @@ void QueryRaw::buildGeometries(std::shared_ptr<OsmChangeFile> osmchanges, const 
     // geometries of Ways
     if (referencedNodeIds.size() > 1) {
         referencedNodeIds.erase(referencedNodeIds.size() - 1);
-        // Get Nodes geoemtries from DB
+        // Get Nodes geometries from DB
         std::string nodesQuery = "SELECT osm_id, st_x(geom) AS lat, st_y(geom) AS lon FROM nodes WHERE osm_id IN (" + referencedNodeIds + ");";
         auto result = dbconn->query(nodesQuery);
         if (result.size() == 0) {
@@ -754,6 +766,11 @@ void QueryRaw::buildGeometries(std::shared_ptr<OsmChangeFile> osmchanges, const 
         }
     }
 
+    if (modifiedWaysIds.size() > 1) {
+        // Get geometries for all modified Ways
+        getWaysByIds(modifiedWaysIds, osmchanges->waycache);
+    }
+
     // Build Ways geometries using nodecache
     for (auto it = std::begin(osmchanges->changes); it != std::end(osmchanges->changes); it++) {
         OsmChange *change = it->get();
@@ -762,6 +779,7 @@ void QueryRaw::buildGeometries(std::shared_ptr<OsmChangeFile> osmchanges, const 
 
             // Only build geometries for Ways with incomplete geometries
             if (bg::num_points(way->linestring) != way->refs.size()) {
+
                 way->linestring.clear();
                 for (auto rit = way->refs.begin(); rit != way->refs.end(); ++rit) {
                     if (osmchanges->nodecache.count(*rit)) {
@@ -875,7 +893,6 @@ QueryRaw::getWaysByNodesRefs(std::string &nodeIds) const
     std::vector<std::string> queries;
 
     // Get all Ways that have references to Nodes from the DB, including Polygons and LineString geometries
-    // std::string waysQuery = "SELECT distinct(osm_id), refs, version, tags, uid, changeset from way_refs join ways_poly wp on wp.osm_id = way_id where node_id = any(ARRAY[" + nodeIds + "])";
     queries.push_back("SELECT distinct(osm_id), refs, version, tags, uid, changeset FROM ways_poly WHERE refs @> '{" + nodeIds + "}';");
     queries.push_back("SELECT distinct(osm_id), refs, version, tags, uid, changeset FROM ways_line WHERE refs @> '{" + nodeIds + "}';");
 

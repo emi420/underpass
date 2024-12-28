@@ -119,7 +119,8 @@ main(int argc, char *argv[])
             ("debug,d", "Enable debug messages for developers")
             ("norefs", "Disable refs (useful for non OSM data)")
             ("bootstrap", "Bootstrap data tables")
-            ("silent", "Silent");
+            ("silent", "Silent")
+            ("pbf", opts::value<std::string>(), "PBF file for DB initialization");
         // clang-format on
 
         opts::store(opts::command_line_parser(argc, argv).options(desc).positional(p).run(), vm);
@@ -133,6 +134,11 @@ main(int argc, char *argv[])
     // Data processing
     if (vm.count("norefs")) {
         config.norefs = true;
+    }
+
+    // Data DB initialization
+    if (vm.count("pbf")) {
+        config.pbf = vm["pbf"].as<std::string>();;
     }
 
     // Logging

@@ -35,6 +35,10 @@
 #include <boost/thread/pthread/shared_mutex.hpp>
 #include <string.h>
 
+#include <osmium/io/any_input.hpp>
+#include <osmium/util/file.hpp>
+#include <osmium/util/progress_bar.hpp>
+
 #include "utils/log.hh"
 
 using namespace queryraw;
@@ -59,6 +63,46 @@ Bootstrap::allTasksQueries(std::shared_ptr<std::vector<BootstrapTask>> tasks) {
     return queries; 
 }
 
+// Handler to process nodes
+class NodeHandler : public osmium::handler::Handler {
+public:
+
+    NodeHandler() {}
+
+    std::vector<std::string> queries;
+    std::shared_ptr<Pq> db;
+    osmium::ProgressBar* progress = nullptr;
+    osmium::io::Reader* reader = nullptr;
+
+    void node(const osmium::Node& node) {
+        std::string format = "INSERT INTO nodes (osm_id, geom) VALUES (%d, ST_GeomFromText('%s', 4326)) ON CONFLICT DO NOTHING; ";
+        boost::format fmt(format);
+
+        fmt % node.id();
+
+        OsmNode osmNode(node.location().lat(), node.location().lon());
+        std::stringstream ss;
+        ss << std::setprecision(12) << bg::wkt(osmNode.point);
+        std::string geometry = ss.str();
+        fmt % geometry;
+
+        queries.push_back(fmt.str());
+        if (queries.size() == 500) {
+            std::string queries_str = "";
+            for (auto it = queries.begin(); it != queries.end(); ++it) {
+                queries_str += *it;
+            }
+            queries.clear();
+            db->query(queries_str);
+        }
+
+        if (progress && reader) {
+            progress->update(reader->offset());
+        }
+    }
+};
+
+
 void
 Bootstrap::start(const underpassconfig::UnderpassConfig &config) {
     std::cout << "Connecting to underpass database ... " << std::endl;
@@ -72,61 +116,35 @@ Bootstrap::start(const underpassconfig::UnderpassConfig &config) {
     page_size = config.bootstrap_page_size;
     concurrency = config.concurrency;
     norefs = config.norefs;
+    pbf = config.pbf;
 
-    processRelations();
-    processWays("ways_line");
-    processWays("ways_poly");
-
+    if (!pbf.empty()) {
+        processNodes();
+        processRelations();
+        return;
+    }
+    std::cout << "Usage: underpass --bootstrap --pbf <PBF file>" << std::endl;
+    return;
 }
 
 void
-Bootstrap::processWays(const std::string &tableName) {
+Bootstrap::processNodes() {
+    std::cout << "Reading PBF: " << pbf << std::endl;
 
-    std::cout << "Processing ways ... ";
-    long int total = queryraw->getCount(tableName);
-    long int count = 0;
-    int num_chunks = total / page_size;
+    const osmium::io::File input_file{pbf};
+    osmium::io::Reader reader{input_file};
 
-    long lastid = 0;
+    std:: cout << "Processing Nodes ..." << std::endl;
 
-    int concurrentTasks = concurrency;
-    int percentage = 0;
+    osmium::ProgressBar progress{reader.file_size(), osmium::isatty(2)};
+    NodeHandler handler;
+    handler.db = db;
+    handler.progress = &progress;
+    handler.reader = &reader;
+    osmium::apply(reader, handler);
 
-    for (int chunkIndex = 0; chunkIndex <= (num_chunks/concurrentTasks); chunkIndex++) {
-
-        percentage = (count * 100) / total;
-
-        auto ways = std::make_shared<std::vector<OsmWay>>();
-        ways = queryraw->getWaysFromDB(lastid, concurrency * page_size, tableName);
-        auto tasks = std::make_shared<std::vector<BootstrapTask>>(concurrentTasks);
-        boost::asio::thread_pool pool(concurrentTasks);
-        for (int taskIndex = 0; taskIndex < concurrentTasks; taskIndex++) {
-            auto taskWays = std::make_shared<std::vector<OsmWay>>();
-            WayTask wayTask {
-                taskIndex,
-                std::ref(tasks),
-                std::ref(ways),
-            };
-            std::cout << "\r" << "Processing ways: " << count << "/" << total << " (" << percentage << "%)";
-            boost::asio::post(pool, boost::bind(&Bootstrap::threadBootstrapWayTask, this, wayTask));
-        }
-
-        pool.join();
-
-        auto queries = allTasksQueries(tasks);
-
-        for (auto it = queries->begin(); it != queries->end(); ++it) {
-            db->query(*it);
-        }
-        lastid = ways->back().id;
-        for (auto it = tasks->begin(); it != tasks->end(); ++it) {
-            count += it->processed;
-        }
-    }
-    percentage = (count * 100) / total;
-    std::cout << "\r" << "Processing ways: " << count << "/" << total << " (" << percentage << "%)";
-
-    std::cout << std::endl;
+    progress.done();
+    reader.close();
 
 }
 
@@ -201,74 +219,6 @@ Bootstrap::threadBootstrapRelationTask(RelationTask relationTask)
             // Fill the rel_refs table
             for (auto mit = relation.members.begin(); mit != relation.members.end(); ++mit) {
                 task.query.push_back("INSERT INTO rel_refs (rel_id, way_id) VALUES (" + std::to_string(relation.id) + "," + std::to_string(mit->ref) + ") ON CONFLICT DO NOTHING; ");
-            }
-            ++processed;
-        }
-    }
-    task.processed = processed;
-    const std::lock_guard<std::mutex> lock(tasks_change_mutex);
-    (*tasks)[taskIndex] = task;
-
-}
-
-// This thread get started for every page of way
-void
-Bootstrap::threadBootstrapWayTask(WayTask wayTask)
-{
-#ifdef TIMING_DEBUG
-    boost::timer::auto_cpu_timer timer("bootstrap::threadBootstrapWayTask(wayTask): took %w seconds\n");
-#endif
-    auto taskIndex = wayTask.taskIndex;
-    auto tasks = wayTask.tasks;
-    auto ways = wayTask.ways;
-
-    BootstrapTask task;
-    int processed = 0;
-
-    // Proccesing ways
-    for (size_t i = taskIndex * page_size; i < (taskIndex + 1) * page_size; ++i) {
-        if (i < ways->size()) {
-            auto way = ways->at(i);
-            // Insert nodes from ways
-            int refIndex = 0;
-            if (way.isClosed()) {
-                for (const auto& point : way.polygon.outer()) {
-                    std::string query = "INSERT INTO nodes AS r (osm_id, geom, version) VALUES(";
-                    std::string format = "%d, ST_GeomFromText(\'%s\', 4326), '1' \
-                    ) ON CONFLICT (osm_id) DO NOTHING";
-                    boost::format fmt(format);
-
-                    // osm_id
-                    fmt % way.refs.at(refIndex);
-
-                    // geom
-                    std::stringstream ss;
-                    ss << std::setprecision(12) << bg::wkt(point);
-                    fmt % ss.str();
-
-                    query.append(fmt.str());
-                    task.query.push_back(query);
-                    refIndex++;
-                }
-            } else {
-                for (const auto& point : way.linestring) {
-                    std::string query = "INSERT INTO nodes AS r (osm_id, geom, version) VALUES(";
-                    std::string format = "%d, ST_GeomFromText(\'%s\', 4326), '1' \
-                    ) ON CONFLICT (osm_id) DO NOTHING";
-                    boost::format fmt(format);
-
-                    // osm_id
-                    fmt % way.refs.at(refIndex);
-
-                    // geom
-                    std::stringstream ss;
-                    ss << std::setprecision(12) << bg::wkt(point);
-                    fmt % ss.str();
-
-                    query.append(fmt.str());
-                    task.query.push_back(query);
-                    refIndex++;
-                }
             }
             ++processed;
         }
