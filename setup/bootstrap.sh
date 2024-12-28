@@ -124,7 +124,7 @@ then
         then
             docker exec -w /code/build -t underpass underpass --bootstrap
         else
-            underpass --bootstrap  --server=$USER:$PASS@$HOST:$PORT/$DB
+            underpass --bootstrap  --server=$USER:$PASS@$HOST:$PORT/$DB --pbf $COUNTRY-latest.osm.pbf
         fi
         echo "Done."
         echo " "
