@@ -157,7 +157,7 @@ struct UnderpassConfig {
     std::string destdir_base;
     std::string planet_server;
     std::string datadir;
-    std::string pbf;
+    std::string import;
     std::vector<PlanetServer> planet_servers;
     unsigned int concurrency = 1;
     unsigned int bootstrap_page_size = 100;
