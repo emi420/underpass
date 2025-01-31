@@ -414,7 +414,7 @@ QueryRaw::applyChange(const OsmRelation &relation) const
                 ON CONFLICT (osm_id) DO UPDATE SET tags = %s, refs = %s, geom = %s, timestamp = \'%s\', version = %d, \"user\" = \'%s\', uid = %d, changeset = %d WHERE r.version <= %d;";
                 boost::format fmt(format);
 
-                 log_debug("Create or modify Relation %1%", relation.id);
+                log_debug("Create or modify Relation %1%", relation.id);
 
                 // osm_id
                 fmt % relation.id;

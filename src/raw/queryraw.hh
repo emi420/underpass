@@ -68,6 +68,8 @@ class QueryRaw {
     std::shared_ptr<std::vector<std::string>> applyChange(const OsmWay &way) const;
     /// Build query for processed Relation
     std::shared_ptr<std::vector<std::string>> applyChange(const OsmRelation &relation) const;
+    // Update Relation geometry only
+    std::shared_ptr<std::vector<std::string>> applyChange(const OsmRelation &relation, bool geomOnly) const;
     /// Build all geometries for a OsmChange file
     void buildGeometries(std::shared_ptr<OsmChangeFile> osmchanges, const multipolygon_t &poly);
     /// Get nodes for filling Node cache from refs on ways 
