@@ -34,33 +34,16 @@ pip install shapely
 apt install osm2pgsql
 ```
 
-### Bootstrap
+### Setup DB
 
-Go to the `setup` directory and run the boostrap script:
+1. Import `setup/db/underpass.sql` to a PostGIS database
+2. Download a OSM OBF file, ex: `wget https://download.geofabrik.de/south-america/uruguay-latest.osm.pbf`
+3. Import it `underpass -i uruguay-latest.osm.pbf`
 
-```
-cd setup
-chmod +x bootstrap.sh
-./bootstrap.sh -r south-america -c uruguay
-```
+### Setup priority area
 
-Use `-u <USERNAME>` `-h <HOST>` `-d <DATABASE>` `-d <PORT>` for the database connection.
+If you already have a GeoJSON, skip steps 1 and 2.
 
-If you installed Underpass with Docker, you might use the `-p 5439 -k yes` options.
-
-`./bootstrap.sh -r south-america -c uruguay -p 5439 -k yes`
-
-Regions (-r) are:
-    africa
-    asia
-    australia-oceania
-    central-america
-    europe
-    north-america
-    south-america
-
-Countries (-c) is the name of the country inside the region.
-
-Data is downloaded from GeoFabrik, if you are not sure of what name you need to use, please check there.
-
-For advanced users, check the [boostrap script documentation](/underpass/Dev/bootstrapsh).
+1. Download a poly file, ex: `wget https://download.geofabrik.de/south-america/uruguay.poly`
+2. Convert it to GeoJSON, ex: `python utils/poly2geojson.py uruguay.poly`
+3. Copy priority file, ex: `cp uruguay.poly /usr/local/etc/underpass/priority.geojson`

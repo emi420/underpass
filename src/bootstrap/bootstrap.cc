@@ -313,31 +313,30 @@ Bootstrap::processPBF() {
     osmium::apply(reader, location_handler, handler);
     progress.done();
 
-
     std::map<long, std::shared_ptr<osmobjects::OsmRelation>> relations;
 
     // Relations
     std::cout << "Processing relations  ..." << std::endl;
-    osmium::io::Reader reader3{input_file};
-    osmium::ProgressBar progress3{reader3.file_size(), osmium::isatty(2)};
-    RelationHandler relationHandler(db, queryraw, &relations, &progress3, &reader3);
+    osmium::io::Reader reader2{input_file};
+    osmium::ProgressBar progress2{reader2.file_size(), osmium::isatty(2)};
+    RelationHandler relationHandler(db, queryraw, &relations, &progress2, &reader2);
     osmium::relations::read_relations(input_file, relationHandler);
-    osmium::apply(reader3, relationHandler.handler());
+    osmium::apply(reader2, relationHandler.handler());
     osmium::memory::Buffer buffer = relationHandler.read();
-    progress3.done();
+    progress2.done();
 
     // Relations geometries
     std::cout << "Processing relations (add geometries) ..." << std::endl;
     osmium::area::MultipolygonManager<osmium::area::Assembler> mp_manager{assembler_config};
     osmium::relations::read_relations(input_file, mp_manager);
-    osmium::io::Reader reader2{pbf};
-    osmium::ProgressBar progress2{reader2.file_size(), osmium::isatty(2)};
+    osmium::io::Reader reader3{pbf};
+    osmium::ProgressBar progress3{reader3.file_size(), osmium::isatty(2)};
     osmium::handler::DynamicHandler dynamicHandler;
-    dynamicHandler.set<RelationGeometryHandler>(db, queryraw, &relations, &progress2, &reader2);
-    osmium::apply(reader2, location_handler, mp_manager.handler([&dynamicHandler](osmium::memory::Buffer&& buffer) {
+    dynamicHandler.set<RelationGeometryHandler>(db, queryraw, &relations, &progress3, &reader3);
+    osmium::apply(reader3, location_handler, mp_manager.handler([&dynamicHandler](osmium::memory::Buffer&& buffer) {
         osmium::apply(buffer, dynamicHandler);
     }));
-    progress2.done();
+    progress3.done();
 
 }
 

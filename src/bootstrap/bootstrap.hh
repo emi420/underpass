@@ -32,7 +32,6 @@ class Bootstrap {
     static const underpassconfig::UnderpassConfig &config;
     
     void start(const underpassconfig::UnderpassConfig &config);
-    void processRelations();
     void processPBF();
     
     std::shared_ptr<QueryRaw> queryraw;
