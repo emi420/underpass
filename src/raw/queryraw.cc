@@ -202,7 +202,8 @@ QueryRaw::applyChange(const OsmNode &node) const
         auto tags = buildTagsQuery(node.tags);
         fmt % tags;
         // timestamp
-        std::string timestamp = to_simple_string(boost::posix_time::microsec_clock::universal_time());
+        std::string timestamp = to_simple_string(node.timestamp);
+
         fmt % timestamp;
         // version
         fmt % node.version;
@@ -301,8 +302,9 @@ QueryRaw::applyChange(const OsmWay &way) const
                 geometry = "ST_GeomFromText(\'" + geostring + "\', 4326)";
                 fmt % geometry;
 
-                // timestamp (now)
-                std::string timestamp = to_simple_string(boost::posix_time::microsec_clock::universal_time());
+                // timestamp
+                std::string timestamp = to_simple_string(way.timestamp);
+
                 fmt % timestamp;
                 // version
                 fmt % way.version;
@@ -344,8 +346,9 @@ QueryRaw::applyChange(const OsmWay &way) const
                 geometry = "ST_GeomFromText(\'" + geostring + "\', 4326)";
                 fmt % geometry;
 
-                // Timestamp (now)
-                std::string timestamp = to_simple_string(boost::posix_time::microsec_clock::universal_time());
+                // Timestamp
+                std::string timestamp = to_simple_string(way.timestamp);
+
                 fmt % timestamp;
 
                 // osm_id
@@ -432,8 +435,9 @@ QueryRaw::applyChange(const OsmRelation &relation) const
                 geometry = "ST_GeomFromText(\'" + geostring + "\', 4326)";
                 fmt % geometry;
 
-                // timestamp (now)
-                std::string timestamp = to_simple_string(boost::posix_time::microsec_clock::universal_time());
+                // timestamp
+                std::string timestamp = to_simple_string(relation.timestamp);
+
                 fmt % timestamp;
                 // version
                 fmt % relation.version;
@@ -476,7 +480,8 @@ QueryRaw::applyChange(const OsmRelation &relation) const
                 fmt % geometry;
 
                 // Timestamp
-                std::string timestamp = to_simple_string(boost::posix_time::microsec_clock::universal_time());
+                std::string timestamp = to_simple_string(relation.timestamp);
+
                 fmt % timestamp;
 
                 // osm_id

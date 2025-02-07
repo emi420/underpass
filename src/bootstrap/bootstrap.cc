@@ -33,6 +33,10 @@
 #include <osmium/index/map/flex_mem.hpp>
 #include <osmium/area/assembler.hpp>
 #include <osmium/area/multipolygon_manager.hpp>
+#include <boost/date_time.hpp>
+#include "boost/date_time/posix_time/posix_time.hpp"
+using namespace boost::posix_time;
+using namespace boost::gregorian;
 #include "utils/log.hh"
 
 using namespace queryraw;
@@ -45,6 +49,15 @@ using location_handler_type = osmium::handler::NodeLocationsForWays<index_type>;
 namespace bootstrap {
 
 Bootstrap::Bootstrap(void) {}
+
+boost::posix_time::ptime osmium_ts_to_ptime(osmium::Timestamp ts) {
+    std::string timestamp_iso = ts.to_iso();
+    // Removes 'T' and 'Z'
+    timestamp_iso.pop_back();
+    std::replace(timestamp_iso.begin(), timestamp_iso.end(), 'T', ' ');
+    boost::posix_time::ptime timestamp = boost::posix_time::time_from_string(timestamp_iso);
+    return timestamp;
+}
 
 class RelationHandler : public osmium::relations::RelationsManager<RelationHandler, false, true, false> {
 
@@ -113,6 +126,9 @@ public:
         // action
         osmRelation.action = osmobjects::create;
 
+        // timestamp
+        osmRelation.timestamp = osmium_ts_to_ptime(relation.timestamp());
+
         // Save relation for complete it later
         relations->insert(std::pair(osmRelation.id, std::make_shared<osmobjects::OsmRelation>(osmRelation)));
 
@@ -141,7 +157,8 @@ public:
         OsmNode osmNode(node.location().lat(),  node.location().lon());
         osmNode.id = node.id();
         osmNode.version = node.version();
-        // osmNode.timestamp = node.timestamp();
+        osmNode.timestamp = osmium_ts_to_ptime(node.timestamp());
+
         for (const osmium::Tag& t : node.tags()) {
             osmNode.addTag(t.key(), t.value());
         }
@@ -167,7 +184,7 @@ public:
         OsmWay osmWay;
         osmWay.id = way.id();
         osmWay.version = way.version();
-        // osmWay.timestamp = way.timestamp;
+        osmWay.timestamp = osmium_ts_to_ptime(way.timestamp());
         for (const auto& n : way.nodes()) {
             osmWay.refs.push_back(n.ref());
         }
