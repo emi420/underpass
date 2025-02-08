@@ -32,13 +32,22 @@ class RawTasker {
         void apply(OsmNode &osmNode);
         void apply(OsmWay &osmWay);
         void apply(OsmRelation &osmRelation);
+        void finish();
 
     private:
 
         std::shared_ptr<Pq> db;
         std::shared_ptr<QueryRaw> queryraw;
-        std::vector<std::string> queries;
-    
+        std::vector<OsmNode> nodecache;
+        std::vector<OsmWay> waycache;
+        std::vector<OsmRelation> relcache;
+        void checkNodes(bool finish);
+        void checkWays(bool finish);
+        void checkRelations(bool finish);
+        void checkNodes();
+        void checkWays();
+        void checkRelations();
+
 };
 
 }

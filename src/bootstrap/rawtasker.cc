@@ -20,23 +20,11 @@
 #include "raw/queryraw.hh"
 #include "bootstrap/rawtasker.hh"
 #include "data/pq.hh"
-#include <boost/asio.hpp>
-#include <boost/thread/thread.hpp>
-#include <boost/asio/thread_pool.hpp>
+// #include <boost/asio.hpp>
+// #include <boost/thread/thread.hpp>
+// #include <boost/asio/thread_pool.hpp>
 
 namespace rawtasker {
-
-    // std::shared_ptr<std::vector<std::string>>
-// Bootstrap::allTasksQueries(std::shared_ptr<std::vector<BootstrapTask>> tasks) {
-//     auto queries = std::make_shared<std::vector<std::string>>();
-//     for (auto it = tasks->begin(); it != tasks->end(); ++it) {
-//         for (auto itt = it->query.begin(); itt != it->query.end(); ++itt) {
-//             queries->push_back(*itt);
-//         }
-//     }
-//     return queries; 
-// }
-
 
     RawTasker::RawTasker(std::shared_ptr<Pq> db, std::shared_ptr<QueryRaw> queryraw) {
         this->db = db;
@@ -44,48 +32,85 @@ namespace rawtasker {
     }
 
     void
-    RawTasker::apply(OsmNode &osmNode) {
-        std::shared_ptr<std::vector<std::string>> query = queryraw->applyChange(osmNode);
-        for (const auto& q : *query) {
-            queries.push_back(q);
-        }
+    RawTasker::finish() {
+        checkNodes(true);
+        checkWays(true);
+        checkRelations(true);
+    }
 
-        std::string queries_str = "";
-        for (auto it = queries.begin(); it != queries.end(); ++it) {
-            queries_str += *it;
+    void
+    RawTasker::checkNodes() {
+        checkNodes(false);
+    }
+    void
+    RawTasker::checkNodes(bool finish) {
+        if (finish || nodecache.size() > 1000) {
+            std::string queries;
+            for (const OsmNode& node : nodecache) {
+                std::shared_ptr<std::vector<std::string>> query = queryraw->applyChange(node);
+                for (const auto& q : *query) {
+                    queries.append(q);
+                }
+            }
+            db->query(queries);
+            nodecache.clear();
         }
-        queries.clear();
-        db->query(queries_str);
+    }
+
+    void
+    RawTasker::checkWays() {
+        checkWays(false);
+    }
+    void
+    RawTasker::checkWays(bool finish) {
+        if (finish || waycache.size() > 1000) {
+            std::string queries;
+            for (const OsmWay& way : waycache) {
+                std::shared_ptr<std::vector<std::string>> query = queryraw->applyChange(way);
+                for (const auto& q : *query) {
+                    queries.append(q);
+                }
+            }
+            db->query(queries);
+            waycache.clear();
+        }
+    }
+
+    void
+    RawTasker::checkRelations() {
+        checkRelations(false);
+    }
+    void
+    RawTasker::checkRelations(bool finish) {
+        if (finish || relcache.size() > 1000) {
+            std::string queries;
+            for (const OsmRelation& rel : relcache) {
+                std::shared_ptr<std::vector<std::string>> query = queryraw->applyChange(rel);
+                for (const auto& q : *query) {
+                    queries.append(q);
+                }
+            }
+            db->query(queries);
+            relcache.clear();
+        }
+    }
+
+    void
+    RawTasker::apply(OsmNode &osmNode) {
+        nodecache.push_back(osmNode);
+        checkNodes();
     }
 
     void
     RawTasker::apply(OsmWay &osmWay) {
-        std::shared_ptr<std::vector<std::string>> query = queryraw->applyChange(osmWay);
-        for (const auto& q : *query) {
-            queries.push_back(q);
-        }
-
-        std::string queries_str = "";
-        for (auto it = queries.begin(); it != queries.end(); ++it) {
-            queries_str += *it;
-        }
-        queries.clear();
-        db->query(queries_str);
+        waycache.push_back(osmWay);
+        checkWays();
     }
 
     void
     RawTasker::apply(OsmRelation &osmRelation) {
-        std::shared_ptr<std::vector<std::string>> query = queryraw->applyChange(osmRelation);
-        for (const auto& q : *query) {
-            queries.push_back(q);
-        }
-
-        std::string queries_str = "";
-        for (auto it = queries.begin(); it != queries.end(); ++it) {
-            queries_str += *it;
-        }
-        queries.clear();
-        db->query(queries_str);
+        relcache.push_back(osmRelation);
+        checkRelations();
     }
 
 }

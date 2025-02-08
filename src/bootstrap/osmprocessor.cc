@@ -255,6 +255,7 @@ namespace osmprocessor {
         handler.reader = &reader;
         handler.rawTasker = rawTasker;
         osmium::apply(reader, location_handler, handler);
+        rawTasker->finish();
         progress.done();
     }
 
@@ -267,6 +268,7 @@ namespace osmprocessor {
         osmium::relations::read_relations(input_file, relationHandler);
         osmium::apply(reader, relationHandler.handler());
         osmium::memory::Buffer buffer = relationHandler.read();
+        rawTasker->finish();
         progress.done();
     }
 
@@ -283,8 +285,9 @@ namespace osmprocessor {
         osmium::handler::DynamicHandler dynamicHandler;
         dynamicHandler.set<RelationGeometryHandler>(rawTasker, &relcache, &progress, &reader);
         osmium::apply(reader, location_handler, mp_manager.handler([&dynamicHandler](osmium::memory::Buffer&& buffer) {
-        osmium::apply(buffer, dynamicHandler);
+            osmium::apply(buffer, dynamicHandler);
         }));
+        rawTasker->finish();
         progress.done();
     }
 
