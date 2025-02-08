@@ -49,4 +49,5 @@ cd ..
 echo "Building ..."
 make -j$(nproc) && sudo make install
 
-echo "Done! now you may want to initialize the database with the bootstrap script"
+echo "Done! now you may want to initialize the database with"
+echo "underpass -i your_file.osm.pbf"

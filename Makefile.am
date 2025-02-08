@@ -60,8 +60,9 @@ libunderpass_la_SOURCES = \
 	src/replicator/planetreplicator.cc src/replicator/planetreplicator.hh \
 	src/replicator/threads.cc src/replicator/threads.hh \
 	src/bootstrap/bootstrap.cc src/bootstrap/bootstrap.hh \
+	src/bootstrap/rawtasker.cc src/bootstrap/rawtasker.hh \
+	src/bootstrap/osmprocessor.cc src/bootstrap/osmprocessor.hh \
 	src/utils/geoutil.cc src/utils/geoutil.hh \
-	src/utils/geo.cc src/utils/geo.hh \
 	src/utils/yaml.hh src/utils/yaml.cc \
 	src/data/pq.hh src/data/pq.cc \
 	setup/db/setupdb.sh

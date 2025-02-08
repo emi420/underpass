@@ -218,7 +218,7 @@ main(int argc, char *argv[])
                 exit(-1);
             }
         }
-        
+
         // Priority boundary
         multipolygon_t poly;
         if (vm.count("boundary")) {

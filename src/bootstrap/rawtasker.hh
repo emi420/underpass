@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2023, 2024 Humanitarian OpenStreetMap Team
+// Copyright (c) 2025 Emilio Mariscal
 //
 // This file is part of Underpass.
 //
@@ -18,27 +18,27 @@
 //
 
 #include "raw/queryraw.hh"
-#include "underpassconfig.hh"
-
+#include "data/pq.hh"
 using namespace queryraw;
 
-namespace bootstrap {
+namespace rawtasker {
 
-class Bootstrap {
-  public:
-    Bootstrap(void);
-    ~Bootstrap(void){};
-    static const underpassconfig::UnderpassConfig &config;
-
-    void start(const underpassconfig::UnderpassConfig &config);
+class RawTasker {
+    public:
+    
+        RawTasker(std::shared_ptr<Pq> db, std::shared_ptr<QueryRaw> queryraw);
+        ~RawTasker(void){};
+    
+        void apply(OsmNode &osmNode);
+        void apply(OsmWay &osmWay);
+        void apply(OsmRelation &osmRelation);
 
     private:
-      std::shared_ptr<Pq> db;
-      std::shared_ptr<QueryRaw> queryraw;
 
-      void connect(const std::string &db_url);
-      void processPBF(std::string &pbf);
-
-  };
+        std::shared_ptr<Pq> db;
+        std::shared_ptr<QueryRaw> queryraw;
+        std::vector<std::string> queries;
+    
+};
 
 }
