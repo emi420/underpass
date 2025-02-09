@@ -160,7 +160,7 @@ struct UnderpassConfig {
     std::string import;
     std::vector<PlanetServer> planet_servers;
     unsigned int concurrency = 1;
-    unsigned int bootstrap_page_size = 100;
+    unsigned int bootstrap_page_size = 500;
 
     frequency_t frequency = frequency_t::minutely;
     ptime start_time = not_a_date_time;              ///< Starting time for changesets and OSM changes import

@@ -243,7 +243,6 @@ main(int argc, char *argv[])
             return 1;
         }
 
-        
         processFile("raw-case-8.osc", db);
         if ( getWKTFromDB("relations", 16191459, db).compare(expectedGeometries[7]) == 0) {
             runtest.pass("Complex, 1 polygon relation made of multiple ways (same changeset) - raw-case-8.osc");

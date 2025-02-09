@@ -19,16 +19,17 @@
 
 #include "raw/queryraw.hh"
 #include "data/pq.hh"
+
 using namespace queryraw;
 
 namespace rawtasker {
 
 class RawTasker {
     public:
-    
-        RawTasker(std::shared_ptr<Pq> db, std::shared_ptr<QueryRaw> queryraw);
+
+        RawTasker(std::shared_ptr<Pq> db, std::shared_ptr<QueryRaw> queryraw, int page_size, int concurrency);
         ~RawTasker(void){};
-    
+
         void apply(OsmNode &osmNode);
         void apply(OsmWay &osmWay);
         void apply(OsmRelation &osmRelation);
@@ -41,12 +42,22 @@ class RawTasker {
         std::vector<OsmNode> nodecache;
         std::vector<OsmWay> waycache;
         std::vector<OsmRelation> relcache;
+        int page_size;
+        int concurrency;
+        int chunk_size;
+        int stat_nodes = 0;
+        int stat_ways = 0;
+        int stat_rels = 0;
         void checkNodes(bool finish);
         void checkWays(bool finish);
         void checkRelations(bool finish);
         void checkNodes();
         void checkWays();
         void checkRelations();
+        void threadWayProcess(std::vector<OsmWay*> ways);
+        void threadNodeProcess(std::vector<OsmNode*> nodes);
+        void threadRelationProcess(std::vector<OsmRelation*> rels);
+
 
 };
 

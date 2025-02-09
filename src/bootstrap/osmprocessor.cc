@@ -52,38 +52,38 @@ namespace osmprocessor {
     }
 
     class RelationHandler : public osmium::relations::RelationsManager<RelationHandler, false, true, false> {
-    
+
         public:
-        
+
             osmium::geom::WKTFactory<> m_factory;
             std::map<long, std::shared_ptr<osmobjects::OsmRelation>>* relations = nullptr;
             osmium::ProgressBar* progress = nullptr;
             osmium::io::Reader* reader = nullptr;
-        
+
             RelationHandler(
                 std::map<long, std::shared_ptr<osmobjects::OsmRelation>>* m_relations,
                 osmium::ProgressBar* m_progress,
                 osmium::io::Reader* m_reader)
             : relations(m_relations), progress(m_progress), reader(m_reader) {}
-        
+
             // Callback for newly found relations (first pass)
             bool new_relation(const osmium::Relation& relation) noexcept {
                 return relation.tags().has_tag("type", "multipolygon") || relation.tags().has_tag("type", "boundary");
             }
-        
+
             // Callback for completed relations (second pass)
             void complete_relation(const osmium::Relation& relation) {
-        
+
                 OsmRelation osmRelation;
-        
+
                 // osm_id
                 osmRelation.id = relation.id();
-        
+
                 // tags
                 for (const osmium::Tag& t : relation.tags()) {
                     osmRelation.addTag(t.key(), t.value());
                 }
-        
+
                 // refs
                 for (const auto& member : relation.members()) {
                     if (member.ref() != 0) {
@@ -91,7 +91,7 @@ namespace osmprocessor {
                         oss << member.type();
                         std::string member_type = oss.str();
                         osmobjects::osmtype_t obj_type = osmobjects::osmtype_t::empty;
-        
+
                         if (member_type == "w") {
                             obj_type = osmobjects::osmtype_t::way;
                         } else if (member_type == "n") {
@@ -106,38 +106,38 @@ namespace osmprocessor {
                         );
                     }
                 }
-        
+
                 // version
                 osmRelation.version = relation.version();
-        
+
                 // action
                 osmRelation.action = osmobjects::create;
-        
+
                 // timestamp
                 osmRelation.timestamp = osmium_ts_to_ptime(relation.timestamp());
-        
+
                 // Save relation for complete it later
                 relations->insert(std::pair(osmRelation.id, std::make_shared<osmobjects::OsmRelation>(osmRelation)));
-        
+
                 if (progress && reader) {
                     progress->update(reader->offset());
                 }
-        
+
             }
-        
+
         };
-        
-        // Handler to process nodes and ways
+
+    // Handler to process nodes and ways
     class NodeWayHandler : public osmium::handler::Handler {
         public:
-        
+
             NodeWayHandler() {}
-        
+
             std::shared_ptr<RawTasker> rawTasker;
             osmium::ProgressBar* progress = nullptr;
             osmium::io::Reader* reader = nullptr;
             osmium::geom::WKTFactory<> factory;
-        
+
             void node(const osmium::Node& node) {
                 OsmNode osmNode(node.location().lat(), node.location().lon());
                 osmNode.id = node.id();
@@ -156,7 +156,7 @@ namespace osmprocessor {
                 }
 
             }
-        
+
             void way(const osmium::Way& way) {
                 OsmWay osmWay;
                 osmWay.id = way.id();
@@ -176,18 +176,19 @@ namespace osmprocessor {
                     osmWay.addTag(t.key(), t.value());
                 }
                 osmWay.action = osmobjects::create;
-        
+
                 rawTasker->apply(osmWay);
-        
+
                 if (progress && reader) {
                     progress->update(reader->offset());
                 }
             }
 
         };
-        
+
+    // Handler to process geometries
     class RelationGeometryHandler : public osmium::handler::Handler {
-        
+
             osmium::geom::WKTFactory<> m_factory;
             std::shared_ptr<RawTasker> rawTasker;
             std::map<long, std::shared_ptr<osmobjects::OsmRelation>>* relations = nullptr;
@@ -209,11 +210,11 @@ namespace osmprocessor {
                 try {
 
                     if (!area.from_way()) {
-        
+
                         auto osmRelation = relations->at(area.orig_id());
-        
+
                         auto rel_wkt = m_factory.create_multipolygon(area);
-        
+
                         multipolygon_t rel_multipolygon;
                         boost::geometry::read_wkt(rel_wkt, rel_multipolygon);
 
@@ -230,7 +231,7 @@ namespace osmprocessor {
                     }
 
                 } catch (const osmium::geometry_error& e) {
-                    std::cout << "GEOMETRY ERROR: " << e.what() << "\n";
+                    // std::cout << "GEOMETRY ERROR: " << e.what() << "\n";
                 }
 
                 if (progress && reader) {

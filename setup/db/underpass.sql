@@ -32,8 +32,6 @@ CREATE TABLE IF NOT EXISTS public.changesets (
     source text,
     bbox public.geometry(MultiPolygon,4326)
 );
-ALTER TABLE ONLY public.changesets
-    ADD CONSTRAINT changesets_pkey PRIMARY KEY (id);
 
 DROP TYPE IF EXISTS public.objtype;
 CREATE TYPE public.objtype AS ENUM ('node', 'way', 'relation');
@@ -84,3 +82,18 @@ CREATE TABLE IF NOT EXISTS public.relations (
     "user" text,
     uid int8
 );
+
+ALTER TABLE ONLY public.ways_poly
+    ADD CONSTRAINT ways_poly_pkey PRIMARY KEY (osm_id);
+
+ALTER TABLE ONLY public.ways_line
+    ADD CONSTRAINT ways_line_pkey PRIMARY KEY (osm_id);
+
+ALTER TABLE ONLY public.nodes
+    ADD CONSTRAINT nodes_pkey PRIMARY KEY (osm_id);
+
+ALTER TABLE ONLY public.relations
+    ADD CONSTRAINT relations_pkey PRIMARY KEY (osm_id);
+
+ALTER TABLE ONLY public.changesets
+    ADD CONSTRAINT changesets_pkey PRIMARY KEY (id);

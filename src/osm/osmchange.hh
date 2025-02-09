@@ -240,7 +240,7 @@ class OsmChangeFile
     std::list<std::shared_ptr<OsmChange>> changes;      ///< All the changes in this file
 
     std::map<double, point_t> nodecache;                ///< Cache nodes across multiple changesets
-    
+
     std::map<long, std::shared_ptr<osmobjects::OsmWay>> waycache; ///< Cache ways across multiple changesets
 
     /// dump internal data, for debugging only

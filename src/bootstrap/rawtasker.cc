@@ -20,15 +20,18 @@
 #include "raw/queryraw.hh"
 #include "bootstrap/rawtasker.hh"
 #include "data/pq.hh"
-// #include <boost/asio.hpp>
-// #include <boost/thread/thread.hpp>
-// #include <boost/asio/thread_pool.hpp>
+#include <boost/asio.hpp>
+#include <boost/thread/thread.hpp>
+#include <boost/asio/thread_pool.hpp>
 
 namespace rawtasker {
 
-    RawTasker::RawTasker(std::shared_ptr<Pq> db, std::shared_ptr<QueryRaw> queryraw) {
+    RawTasker::RawTasker(std::shared_ptr<Pq> db, std::shared_ptr<QueryRaw> queryraw, int page_size, int concurrency) {
         this->db = db;
         this->queryraw = queryraw;
+        this->page_size = page_size;
+        this->concurrency = concurrency;
+        this->chunk_size = page_size * concurrency;
     }
 
     void
@@ -44,17 +47,46 @@ namespace rawtasker {
     }
     void
     RawTasker::checkNodes(bool finish) {
-        if (finish || nodecache.size() > 1000) {
-            std::string queries;
-            for (const OsmNode& node : nodecache) {
-                std::shared_ptr<std::vector<std::string>> query = queryraw->applyChange(node);
-                for (const auto& q : *query) {
-                    queries.append(q);
+        if (finish || nodecache.size() == chunk_size) {
+
+            if (finish) {
+                page_size = nodecache.size();
+            }
+
+            boost::asio::thread_pool pool(concurrency);
+            std::vector<std::vector<OsmNode*>> nodesToProcess(concurrency);
+            int index = 0;
+            int count;
+
+            for (int i = 0; i < concurrency; i++) {
+                for (int j = 0; j < page_size; j++) {
+                    if (index < nodecache.size()) {
+                        nodesToProcess[i].push_back(&nodecache[index]);
+                        index++;
+                    } else {
+                        continue;
+                    }
+                }
+                if (nodesToProcess[i].size() > 0) {
+                    boost::asio::post(pool, boost::bind(&RawTasker::threadNodeProcess, this, nodesToProcess[i]));
                 }
             }
-            db->query(queries);
+            pool.join();
             nodecache.clear();
         }
+    }
+
+    void
+    RawTasker::threadNodeProcess(std::vector<OsmNode*> nodes) {
+        std::string queries;
+        for (const OsmNode* node : nodes) {
+            std::shared_ptr<std::vector<std::string>> query = queryraw->applyChange(*node);
+            stat_nodes++;
+            for (const auto& q : *query) {
+                queries.append(q);
+            }
+        }
+        db->query(queries);
     }
 
     void
@@ -63,17 +95,46 @@ namespace rawtasker {
     }
     void
     RawTasker::checkWays(bool finish) {
-        if (finish || waycache.size() > 1000) {
-            std::string queries;
-            for (const OsmWay& way : waycache) {
-                std::shared_ptr<std::vector<std::string>> query = queryraw->applyChange(way);
-                for (const auto& q : *query) {
-                    queries.append(q);
+        if (finish || waycache.size() == chunk_size) {
+
+            if (finish) {
+                page_size = waycache.size();
+            }
+
+            boost::asio::thread_pool pool(concurrency);
+            std::vector<std::vector<OsmWay*>> waysToProcess(concurrency);
+            int index = 0;
+            int count;
+
+            for (int i = 0; i < concurrency; i++) {
+                for (int j = 0; j < page_size; j++) {
+                    if (index < waycache.size()) {
+                        waysToProcess[i].push_back(&waycache[index]);
+                        index++;
+                    } else {
+                        continue;
+                    }
+                }
+                if (waysToProcess.size() > 0) {
+                    boost::asio::post(pool, boost::bind(&RawTasker::threadWayProcess, this, waysToProcess[i]));
                 }
             }
-            db->query(queries);
+            pool.join();
             waycache.clear();
         }
+    }
+
+    void
+    RawTasker::threadWayProcess(std::vector<OsmWay*> ways) {
+        std::string queries;
+        for (const OsmWay* way : ways) {
+            std::shared_ptr<std::vector<std::string>> query = queryraw->applyChange(*way);
+            stat_ways++;
+            for (const auto& q : *query) {
+                queries.append(q);
+            }
+        }
+        db->query(queries);
     }
 
     void
@@ -82,17 +143,45 @@ namespace rawtasker {
     }
     void
     RawTasker::checkRelations(bool finish) {
-        if (finish || relcache.size() > 1000) {
-            std::string queries;
-            for (const OsmRelation& rel : relcache) {
-                std::shared_ptr<std::vector<std::string>> query = queryraw->applyChange(rel);
-                for (const auto& q : *query) {
-                    queries.append(q);
+        if (finish || relcache.size() == chunk_size) {
+
+            if (finish) {
+                page_size = relcache.size();
+            }
+
+            boost::asio::thread_pool pool(concurrency);
+            std::vector<std::vector<OsmRelation*>> relsToProcess(concurrency);
+            int index = 0;
+            int count;
+            for (int i = 0; i < concurrency; i++) {
+                for (int j = 0; j < page_size; j++) {
+                    if (index < relcache.size()) {
+                        relsToProcess[i].push_back(&relcache[index]);
+                        index++;
+                    } else {
+                        continue;
+                    }
+                }
+                if (relsToProcess.size() > 0) {
+                    boost::asio::post(pool, boost::bind(&RawTasker::threadRelationProcess, this, relsToProcess[i]));
                 }
             }
-            db->query(queries);
+            pool.join();
             relcache.clear();
         }
+    }
+
+    void
+    RawTasker::threadRelationProcess(std::vector<OsmRelation*> rels) {
+        std::string queries;
+        for (const OsmRelation* rel : rels) {
+            std::shared_ptr<std::vector<std::string>> query = queryraw->applyChange(*rel);
+            stat_rels++;
+            for (const auto& q : *query) {
+                queries.append(q);
+            }
+        }
+        db->query(queries);
     }
 
     void

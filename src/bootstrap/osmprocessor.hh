@@ -27,19 +27,20 @@ namespace osmprocessor {
 
     class OsmProcessor {
         public:
-        
+
+            std::map<long, std::shared_ptr<osmobjects::OsmRelation>> relcache;
+
             OsmProcessor(std::shared_ptr<RawTasker> rawTasker, std::string pbf_filename);
             ~OsmProcessor(void){};
-        
+
             void nodesAndWays();
             void relations();
             void relationsGeometries();
-    
+
         private:
 
             std::shared_ptr<RawTasker> rawTasker;
             std::string pbf_filename;
-            std::map<long, std::shared_ptr<osmobjects::OsmRelation>> relcache;
 
       };
 

@@ -155,7 +155,7 @@ struct RelationGeometry {
 
 void
 OsmChangeFile::buildRelationGeometry(osmobjects::OsmRelation &relation) {
-    
+
     std::vector<RelationGeometry> parts_inner;
     std::vector<RelationGeometry> parts_outer;
     linestring_t part;
@@ -164,7 +164,7 @@ OsmChangeFile::buildRelationGeometry(osmobjects::OsmRelation &relation) {
     bool first = true;
 
     std::vector<osmobjects::OsmRelationMember> members;
-    
+
     // Skip members that are not Way
     for (auto mit = relation.members.begin(); mit != relation.members.end(); ++mit) {
         if (mit->type == osmobjects::way) {
@@ -180,7 +180,7 @@ OsmChangeFile::buildRelationGeometry(osmobjects::OsmRelation &relation) {
             // or the way was deleted
             return;
         }
-        
+
         auto way = std::make_shared<osmobjects::OsmWay>();
 
         way = waycache.at(mit->ref);
@@ -759,7 +759,7 @@ OsmChangeFile::areaFilter(const multipolygon_t &poly)
             if (waycache.count(way->id)) {
                 waycache.at(way->id)->priority = way->priority;
             }
-            
+
         }
 
         // Filter relations

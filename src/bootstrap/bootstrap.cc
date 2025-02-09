@@ -46,11 +46,12 @@ namespace bootstrap {
     }
 
     void
-    Bootstrap::processPBF(std::string &pbf) {
+    Bootstrap::processPBF(std::string &pbf, int page_size, int concurrency) {
         std::cout << "Processing PBF ... (" << pbf << ")" << std::endl;
 
         auto queryraw = std::make_shared<QueryRaw>(db);
-        auto rawTasker = std::make_shared<RawTasker>(db, queryraw);
+        queryraw->onConflict = false;
+        auto rawTasker = std::make_shared<RawTasker>(db, queryraw, page_size, concurrency);
         auto osmProcessor = OsmProcessor(rawTasker, pbf);
 
         std::cout << "Processing nodes and ways ..." << std::endl;
@@ -58,6 +59,7 @@ namespace bootstrap {
 
         std::cout << "Processing relations  ..." << std::endl;
         osmProcessor.relations();
+
         std::cout << "Processing relations  (geometries)..." << std::endl;
         osmProcessor.relationsGeometries();
 
@@ -71,7 +73,7 @@ namespace bootstrap {
             std::cout << "Usage: underpass --import <PBF file>" << std::endl;
             return;
         }
-        processPBF(pbf);
+        processPBF(pbf, config.bootstrap_page_size, config.concurrency);
     }
 
 }

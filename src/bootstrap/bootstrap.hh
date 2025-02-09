@@ -28,7 +28,6 @@ class Bootstrap {
   public:
     Bootstrap(void);
     ~Bootstrap(void){};
-    static const underpassconfig::UnderpassConfig &config;
 
     void start(const underpassconfig::UnderpassConfig &config);
 
@@ -37,7 +36,7 @@ class Bootstrap {
       std::shared_ptr<QueryRaw> queryraw;
 
       void connect(const std::string &db_url);
-      void processPBF(std::string &pbf);
+      void processPBF(std::string &pbf, int page_size, int concurrency);
 
   };
 

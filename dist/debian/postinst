@@ -84,8 +84,8 @@ if [ "$1" = "configure" ]; then
 	rm  -f /etc/default/underpass
 	touch /etc/default/underpass
     fi
-    
+
     prompt "$(declare -p config)"
-        
+
 fi
 

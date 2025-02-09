@@ -61,6 +61,8 @@ class QueryRaw {
     static const std::string polyTable;
     // Name of the table for storing linestrings
     static const std::string lineTable;
+    // Name of the table for storing linestrings
+    bool onConflict = true;
 
     /// Build query for processed Node
     std::shared_ptr<std::vector<std::string>> applyChange(const OsmNode &node) const;

@@ -43,6 +43,7 @@ sudo apt-get update \
 1. Import `setup/db/underpass.sql` to a PostGIS database
 2. Download a OSM OBF file, ex: `wget https://download.geofabrik.de/south-america/uruguay-latest.osm.pbf`
 3. Import it `underpass -i uruguay-latest.osm.pbf`
+4. Create indexes importing `setup/db/indexes.sql` the DB
 
 ### Setup priority area
 
