@@ -104,7 +104,6 @@ main(int argc, char *argv[])
             ("changeseturl", opts::value<std::string>(), "Starting URL path for ChangeSet (ex. 000/075/000), takes precedence over 'timestamp' option")
             ("frequency,f", opts::value<std::string>(), "Update frequency (hourly, daily), default minutely)")
             ("timestamp,t", opts::value<std::vector<std::string>>(), "Starting timestamp (can be used 2 times to set a range)")
-            // ("import,i", opts::value<std::string>(), "Initialize OSM database with datafile")
             ("boundary,b", opts::value<std::string>(), "Boundary polygon file name")
             ("osmnoboundary", "Disable boundary polygon for OsmChanges")
             ("oscnoboundary", "Disable boundary polygon for Changesets")
@@ -118,9 +117,8 @@ main(int argc, char *argv[])
             ("osmchanges", "OsmChanges only")
             ("debug,d", "Enable debug messages for developers")
             ("norefs", "Disable refs (useful for non OSM data)")
-            ("bootstrap", "Bootstrap data tables")
-            ("silent", "Silent")
-            ("pbf", opts::value<std::string>(), "PBF file for DB initialization");
+            ("import,i", opts::value<std::string>(), "Initialize OSM database with OSM PBF datafile")
+            ("silent", "Silent");
         // clang-format on
 
         opts::store(opts::command_line_parser(argc, argv).options(desc).positional(p).run(), vm);
@@ -134,11 +132,6 @@ main(int argc, char *argv[])
     // Data processing
     if (vm.count("norefs")) {
         config.norefs = true;
-    }
-
-    // Data DB initialization
-    if (vm.count("pbf")) {
-        config.pbf = vm["pbf"].as<std::string>();;
     }
 
     // Logging
@@ -225,7 +218,7 @@ main(int argc, char *argv[])
                 exit(-1);
             }
         }
-        
+
         // Priority boundary
         multipolygon_t poly;
         if (vm.count("boundary")) {
@@ -340,9 +333,10 @@ main(int argc, char *argv[])
     }
 
     // Bootstrapping
-    if (vm.count("bootstrap")){
+    if (vm.count("import")){
+        config.import = vm["import"].as<std::string>();
         std::thread bootstrapThread;
-        std::cout << "Starting bootstrapping process ..." << std::endl;
+        std::cout << "Initializing ..." << std::endl;
         auto boostrapper = bootstrap::Bootstrap();
         bootstrapThread = std::thread(&bootstrap::Bootstrap::start, &boostrapper, std::ref(config));
         log_info("Waiting...");

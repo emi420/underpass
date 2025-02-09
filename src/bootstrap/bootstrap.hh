@@ -19,48 +19,25 @@
 
 #include "raw/queryraw.hh"
 #include "underpassconfig.hh"
-#include <mutex>
 
 using namespace queryraw;
 
 namespace bootstrap {
-
-/// \struct BootstrapTask
-/// \brief Represents a bootstrap task
-struct BootstrapTask {
-    std::vector<std::string> query;
-    int processed = 0;
-};
-
-struct RelationTask {
-    int taskIndex;
-    std::shared_ptr<std::vector<BootstrapTask>> tasks;
-    std::shared_ptr<std::vector<OsmRelation>> relations;
-};
 
 class Bootstrap {
   public:
     Bootstrap(void);
     ~Bootstrap(void){};
 
-    static const underpassconfig::UnderpassConfig &config;
-    
     void start(const underpassconfig::UnderpassConfig &config);
-    void processRelations();
-    void processNodes();
 
-    // This thread get started for every page of relations
-    void threadBootstrapRelationTask(RelationTask relationTask);
-    std::shared_ptr<std::vector<std::string>> allTasksQueries(std::shared_ptr<std::vector<BootstrapTask>> tasks);
-    
-    std::shared_ptr<QueryRaw> queryraw;
-    std::shared_ptr<Pq> db;
-    bool norefs;
-    unsigned int concurrency;
-    unsigned int page_size;
-    std::string pbf;
-};
+    private:
+      std::shared_ptr<Pq> db;
+      std::shared_ptr<QueryRaw> queryraw;
 
-static std::mutex tasks_change_mutex;
+      void connect(const std::string &db_url);
+      void processPBF(std::string &pbf, int page_size, int concurrency);
+
+  };
 
 }

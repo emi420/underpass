@@ -182,9 +182,15 @@ QueryRaw::applyChange(const OsmNode &node) const
     // If create or modify, then insert or update
     if ((node.action == osmobjects::create || node.action == osmobjects::modify)) {
         std::string query = "INSERT INTO nodes AS r (osm_id, geom, tags, timestamp, version, \"user\", uid, changeset) VALUES(";
-        std::string format = "%d, ST_GeomFromText(\'%s\', 4326), %s, \'%s\', %d, \'%s\', %d, %d \
-        ) ON CONFLICT (osm_id) DO UPDATE SET  geom = ST_GeomFromText(\'%s\', \
-        4326), tags = %s, timestamp = \'%s\', version = %d, \"user\" = \'%s\', uid = %d, changeset = %d WHERE r.version < %d;";
+        std::string format = "%d, ST_GeomFromText(\'%s\', 4326), %s, \'%s\', %d, \'%s\', %d, %d)";
+
+        if (onConflict) {
+            format.append(" ON CONFLICT (osm_id) DO UPDATE SET  geom = ST_GeomFromText(\'%s\', \
+            4326), tags = %s, timestamp = \'%s\', version = %d, \"user\" = \'%s\', uid = %d, changeset = %d WHERE r.version < %d;");
+        } else {
+            format.append(";");
+        }
+
         boost::format fmt(format);
 
         log_debug("Create or modify Node %1%", node.id);
@@ -202,7 +208,8 @@ QueryRaw::applyChange(const OsmNode &node) const
         auto tags = buildTagsQuery(node.tags);
         fmt % tags;
         // timestamp
-        std::string timestamp = to_simple_string(boost::posix_time::microsec_clock::universal_time());
+        std::string timestamp = to_simple_string(node.timestamp);
+
         fmt % timestamp;
         // version
         fmt % node.version;
@@ -214,14 +221,16 @@ QueryRaw::applyChange(const OsmNode &node) const
         fmt % node.changeset;
 
         // ON CONFLICT (update)
-        fmt % geometry;
-        fmt % tags;
-        fmt % timestamp;
-        fmt % node.version;
-        fmt % dbconn->escapedString(node.user);
-        fmt % node.uid;
-        fmt % node.changeset;
-        fmt % node.version;
+        if (onConflict) {
+            fmt % geometry;
+            fmt % tags;
+            fmt % timestamp;
+            fmt % node.version;
+            fmt % dbconn->escapedString(node.user);
+            fmt % node.uid;
+            fmt % node.changeset;
+            fmt % node.version;
+        }
 
         query.append(fmt.str());
         queries->push_back(query);
@@ -276,8 +285,14 @@ QueryRaw::applyChange(const OsmWay &way) const
                 log_debug("Create or modify Way %1%", way.id);
 
                 query = "INSERT INTO " + *tableName + " AS r (osm_id, tags, refs, geom, timestamp, version, \"user\", uid, changeset) VALUES(";
-                std::string format = "%d, %s, %s, %s, \'%s\', %d, \'%s\', %d, %d) \
-                ON CONFLICT (osm_id) DO UPDATE SET tags = %s, refs = %s, geom = %s, timestamp = \'%s\', version = %d, \"user\" = \'%s\', uid = %d, changeset = %d WHERE r.version <= %d;";
+                std::string format = "%d, %s, %s, %s, \'%s\', %d, \'%s\', %d, %d)";
+
+                if (onConflict) {
+                    format.append(" ON CONFLICT (osm_id) DO UPDATE SET tags = %s, refs = %s, geom = %s, timestamp = \'%s\', version = %d, \"user\" = \'%s\', uid = %d, changeset = %d WHERE r.version <= %d;");
+                } else {
+                    format.append(";");
+                }
+
                 boost::format fmt(format);
 
                 // osm_id
@@ -301,8 +316,9 @@ QueryRaw::applyChange(const OsmWay &way) const
                 geometry = "ST_GeomFromText(\'" + geostring + "\', 4326)";
                 fmt % geometry;
 
-                // timestamp (now)
-                std::string timestamp = to_simple_string(boost::posix_time::microsec_clock::universal_time());
+                // timestamp
+                std::string timestamp = to_simple_string(way.timestamp);
+
                 fmt % timestamp;
                 // version
                 fmt % way.version;
@@ -314,15 +330,17 @@ QueryRaw::applyChange(const OsmWay &way) const
                 fmt % way.changeset;
 
                 // ON CONFLICT (update)
-                fmt % tags;
-                fmt % refs;
-                fmt % geometry;
-                fmt % timestamp;
-                fmt % way.version;
-                fmt % dbconn->escapedString(way.user);
-                fmt % way.uid;
-                fmt % way.changeset;
-                fmt % way.version;
+                if (onConflict) {
+                    fmt % tags;
+                    fmt % refs;
+                    fmt % geometry;
+                    fmt % timestamp;
+                    fmt % way.version;
+                    fmt % dbconn->escapedString(way.user);
+                    fmt % way.uid;
+                    fmt % way.changeset;
+                    fmt % way.version;
+                }
 
                 query += fmt.str();
                 queries->push_back(query);
@@ -344,8 +362,9 @@ QueryRaw::applyChange(const OsmWay &way) const
                 geometry = "ST_GeomFromText(\'" + geostring + "\', 4326)";
                 fmt % geometry;
 
-                // Timestamp (now)
-                std::string timestamp = to_simple_string(boost::posix_time::microsec_clock::universal_time());
+                // Timestamp
+                std::string timestamp = to_simple_string(way.timestamp);
+
                 fmt % timestamp;
 
                 // osm_id
@@ -410,11 +429,17 @@ QueryRaw::applyChange(const OsmRelation &relation) const
             if (relation.action != osmobjects::modify_geom) {
 
                 query = "INSERT INTO relations as r (osm_id, tags, refs, geom, timestamp, version, \"user\", uid, changeset) VALUES(";
-                std::string format = "%d, %s, %s, %s, \'%s\', %d, \'%s\', %d, %d) \
-                ON CONFLICT (osm_id) DO UPDATE SET tags = %s, refs = %s, geom = %s, timestamp = \'%s\', version = %d, \"user\" = \'%s\', uid = %d, changeset = %d WHERE r.version <= %d;";
+                std::string format = "%d, %s, %s, %s, \'%s\', %d, \'%s\', %d, %d)";
+
+                if (onConflict) {
+                    format.append(" ON CONFLICT (osm_id) DO UPDATE SET tags = %s, refs = %s, geom = %s, timestamp = \'%s\', version = %d, \"user\" = \'%s\', uid = %d, changeset = %d WHERE r.version <= %d;");
+                } else {
+                    format.append(";");
+                }
+            
                 boost::format fmt(format);
 
-                 log_debug("Create or modify Relation %1%", relation.id);
+                log_debug("Create or modify Relation %1%", relation.id);
 
                 // osm_id
                 fmt % relation.id;
@@ -432,8 +457,9 @@ QueryRaw::applyChange(const OsmRelation &relation) const
                 geometry = "ST_GeomFromText(\'" + geostring + "\', 4326)";
                 fmt % geometry;
 
-                // timestamp (now)
-                std::string timestamp = to_simple_string(boost::posix_time::microsec_clock::universal_time());
+                // timestamp
+                std::string timestamp = to_simple_string(relation.timestamp);
+
                 fmt % timestamp;
                 // version
                 fmt % relation.version;
@@ -445,15 +471,17 @@ QueryRaw::applyChange(const OsmRelation &relation) const
                 fmt % relation.changeset;
 
                 // ON CONFLICT
-                fmt % tags;
-                fmt % refs;
-                fmt % geometry;
-                fmt % timestamp;
-                fmt % relation.version;
-                fmt % dbconn->escapedString(relation.user);
-                fmt % relation.uid;
-                fmt % relation.changeset;
-                fmt % relation.version;
+                if (onConflict) {
+                    fmt % tags;
+                    fmt % refs;
+                    fmt % geometry;
+                    fmt % timestamp;
+                    fmt % relation.version;
+                    fmt % dbconn->escapedString(relation.user);
+                    fmt % relation.uid;
+                    fmt % relation.changeset;
+                    fmt % relation.version;
+                }
 
                 query.append(fmt.str());
                 queries->push_back(query);
@@ -476,7 +504,8 @@ QueryRaw::applyChange(const OsmRelation &relation) const
                 fmt % geometry;
 
                 // Timestamp
-                std::string timestamp = to_simple_string(boost::posix_time::microsec_clock::universal_time());
+                std::string timestamp = to_simple_string(relation.timestamp);
+
                 fmt % timestamp;
 
                 // osm_id
@@ -544,7 +573,7 @@ QueryRaw::getRelationsByWaysRefs(std::string &wayIds) const
             }
             rel->addMember(std::stol(mit->at("ref")), memberType, mit->at("role"));
         }
-        
+
         rel->version = (*rel_it)[2].as<long>();
         auto tags = (*rel_it)[3];
         if (!tags.is_null()) {

@@ -96,7 +96,7 @@ public:
     // private:
     multipolygon_t boundary; ///< The boundary multipolygon
 };
-    
+
 }       // EOF geoutil
 
 #endif  // EOF __GEOUTIL_HH__

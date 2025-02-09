@@ -94,7 +94,7 @@ public:
     /// @param msg
     ///        The message to print
     void log(const std::string& msg);
-    
+
     /// Remove the log file
     /// Does NOT lock _ioMutex (should it?)
     bool removeLog();
@@ -124,7 +124,7 @@ public:
     int getVerbosity() const {
         return _verbose;
     }
-    
+
     void setNetwork(int x) {
         _network = x;
     }
@@ -132,7 +132,7 @@ public:
     int getNetwork() const {
         return _network;
     }
-    
+
     void setInfoDump (int x) {
         _infodump = x;
     }
@@ -140,7 +140,7 @@ public:
     int getInfoDump() const {
         return _infodump;
     }
-    
+
     void setStamp (bool b) {
         _stamp = b;
     }
@@ -155,13 +155,13 @@ public:
     bool getWriteDisk() const {
         return _write;
     }
-    
+
     typedef void (*logListener)(const std::string& s);
-    
+
     void registerLogCallback(logListener l) { _listener = l; }
 
 private:
-    
+
     /// Open the specified file to write logs on disk
     //
     /// Locks _ioMutex to prevent race conditions accessing _outstream
@@ -214,7 +214,7 @@ private:
     std::string _filespec;
 
     std::string _logFilename;
-    
+
     logListener _listener;
 
 };
@@ -325,7 +325,7 @@ private:
         #define dummyestr(x) dummystr(x)
         #define __FUNCTION__ __FILE__ ":" dummyestr(__LINE__)
     #else
-        #define __FUNCTION__ __func__    
+        #define __FUNCTION__ __func__
     #endif
 #endif
 

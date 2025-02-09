@@ -10,8 +10,3 @@ countries used to determine which country a change was made in for
 statistics collection. These are used to bootstrap a new Underpass
 installation.
 
-## setup/bootstrap.sh
-
-* [Using the bootstrap.sh script](/underpass/Dev/bootstrapsh)
-
-

@@ -55,4 +55,5 @@ ln -s /usr/local/lib/libboost_thread.dylib .libs
 ln -s /usr/local/lib/libboost_serialization.dylib .libs 
 ln -s /usr/local/lib/libboost_regex.dylib .libs
 
-echo "Done! now you may want to initialize the database with the bootstrap script"
+echo "Done! now you may want to initialize the database with"
+echo "underpass -i your_file.osm.pbf"

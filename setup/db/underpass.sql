@@ -15,6 +15,7 @@ SET row_security = off;
 
 CREATE EXTENSION IF NOT EXISTS hstore WITH SCHEMA public;
 COMMENT ON EXTENSION hstore IS 'data type for storing sets of (key, value) pairs';
+
 CREATE EXTENSION IF NOT EXISTS postgis WITH SCHEMA public;
 COMMENT ON EXTENSION postgis IS 'PostGIS geometry, geography, and raster spatial types and functions';
 
@@ -31,8 +32,6 @@ CREATE TABLE IF NOT EXISTS public.changesets (
     source text,
     bbox public.geometry(MultiPolygon,4326)
 );
-ALTER TABLE ONLY public.changesets
-    ADD CONSTRAINT changesets_pkey PRIMARY KEY (id);
 
 DROP TYPE IF EXISTS public.objtype;
 CREATE TYPE public.objtype AS ENUM ('node', 'way', 'relation');
@@ -84,21 +83,17 @@ CREATE TABLE IF NOT EXISTS public.relations (
     uid int8
 );
 
+ALTER TABLE ONLY public.ways_poly
+    ADD CONSTRAINT ways_poly_pkey PRIMARY KEY (osm_id);
+
+ALTER TABLE ONLY public.ways_line
+    ADD CONSTRAINT ways_line_pkey PRIMARY KEY (osm_id);
+
+ALTER TABLE ONLY public.nodes
+    ADD CONSTRAINT nodes_pkey PRIMARY KEY (osm_id);
+
 ALTER TABLE ONLY public.relations
     ADD CONSTRAINT relations_pkey PRIMARY KEY (osm_id);
 
-CREATE UNIQUE INDEX nodes_id_idx ON public.nodes (osm_id DESC);
-CREATE UNIQUE INDEX ways_poly_id_idx ON public.ways_poly (osm_id DESC);
-CREATE UNIQUE INDEX ways_line_id_idx ON public.ways_line(osm_id DESC);
-CREATE UNIQUE INDEX relations_id_idx ON public.relations(osm_id DESC);
-
-CREATE INDEX nodes_version_idx ON public.nodes (version);
-CREATE INDEX ways_poly_version_idx ON public.ways_poly (version);
-CREATE INDEX ways_line_version_idx ON public.ways_line (version);
-
-CREATE INDEX nodes_timestamp_idx ON public.nodes(timestamp DESC);
-CREATE INDEX ways_poly_timestamp_idx ON public.ways_poly(timestamp DESC);
-CREATE INDEX ways_line_timestamp_idx ON public.ways_line(timestamp DESC);
-
-CREATE INDEX idx_changesets_hashtags ON public.changesets USING gin(hashtags);
-
+ALTER TABLE ONLY public.changesets
+    ADD CONSTRAINT changesets_pkey PRIMARY KEY (id);
