@@ -63,6 +63,7 @@ namespace opts = boost::program_options;
 #include "replicator/threads.hh"
 #include "utils/log.hh"
 #include "underpassconfig.hh"
+#include "replicator/planetindex.hh"
 
 using namespace underpassconfig;
 
@@ -98,91 +99,33 @@ operator<<(std::ostream &os, const std::vector<T> &v)
 /// Create a new instance, and read in the geoboundaries file.
 PlanetReplicator::PlanetReplicator(void) {};
 
+int
+test_uri(std::string uri, ptime dt) {
+    planetindex::PlanetIndexFile planetIndex;
+    replication::Planet planet;
+    std::string domain = "planet.maps.mail.ru";
+    std::string url = "/replication/minute" + uri;
+    log_debug("Downloading %1%%2%", domain, url);
+    auto data = planet._downloadFile(domain, url).data;
+    auto html = planet._processData(*data);
+    std::istream& input(html);
+    auto fileindex = planetIndex.getIndexDateFromHTML(input);
+    int closestIndex = planetIndex.getClosestIndex(fileindex, dt);
+    return closestIndex;
+}
+
 std::shared_ptr<RemoteURL> PlanetReplicator::findRemotePath(const underpassconfig::UnderpassConfig &config, ptime time) {
-    yaml::Yaml yaml;
-
-    std::string rep_file = ETCDIR;
-    rep_file += "/replicator/planetreplicator.yaml";
-    yaml.read(rep_file);
-    std::map<int, ptime> hashes;
-
-    yaml::Node hashes_config;
-
-    if (config.frequency == replication::minutely) {
-        hashes_config = yaml.get("minute");
-    } else {
-        hashes_config = yaml.get("changeset");
+    planetindex::PlanetIndexFile planetIndex;
+    int major = test_uri("/", time);
+    int minor = test_uri("/" + planetIndex.zeroPad(major) + "/", time);
+    int index = test_uri("/" + planetIndex.zeroPad(major) + "/" + planetIndex.zeroPad(minor) + "/", time);
+    if (index > 0) {
+        index -= 1 ;
     }
-    for (auto it = hashes_config.children.begin(); it != hashes_config.children.end(); ++it) {
-        hashes.insert(
-            std::make_pair(
-                    stoi(it->value),
-                    time_from_string(it->children[0].value)
-            )
-        );
-    }
-
-    boost::posix_time::time_duration delta;
-    std::pair<int, ptime> closest_prev;
-    std::pair<int, ptime> closest_next;
-    auto it = hashes.begin();
-    for (; it != hashes.end(); ++it) {
-        delta = config.start_time - it->second;
-        if (delta.total_seconds() < 0) {
-            break;
-        }
-    }
-
-    closest_next = *it;
-    closest_prev = *(--it);
-    delta = closest_next.second - closest_prev.second;
-
-    if (delta.total_seconds() < 0) {
-        closest_next = closest_prev;
-        closest_prev = *(std::prev(hashes.end(), 2));
-        delta = closest_next.second - closest_prev.second;
-    }
-
-    double ratio = (delta.total_seconds() / 60.0) / (closest_next.first - closest_prev.first);
-
-    boost::posix_time::time_duration delta_target = config.start_time - closest_prev.second;
-    int target_int = closest_prev.first + (delta_target.total_seconds() / 60.0 / ratio);
-
-    double n = target_int/1000000.0;
-    double major = floor(n);
-    double decimal = n - major;
-
-    double n2 = decimal * 1000;
-    double minor = floor(n2);
-    double index = (n2 - minor) * 1000;
-
-    boost::format majorfmt("%03d");
-    boost::format minorfmt("%03d");
-    boost::format indexfmt("%03d");
-
-    majorfmt % (major);
-    minorfmt % (minor);
-    indexfmt % (index);
-
-    std::string path = majorfmt.str() + "/" + minorfmt.str() + "/" + indexfmt.str();
-
-    std::string suffix;
-    std::string fullurl;
-    std::string cached = config.datadir + StateFile::freq_to_string(config.frequency);
-
-    if (config.frequency == replication::minutely) {
-        suffix = ".osc.gz";
-    } else {
-        suffix = ".osm.gz";
-    }
-
-    connectServer("https://" + config.planet_server);
-    auto remote = std::make_shared<RemoteURL>();
-    cached += "/" + path + suffix;
-    fullurl = "https://" + config.planet_server + "/" + cached;
-    remote->parse(fullurl);
-    remote->updatePath(major, minor, index);
-    return remote;
+    auto remoteURL = std::make_shared<RemoteURL>();
+    remoteURL->parse("https://planet.maps.mail.ru/replication/minute/001/001/001.osc.gz");
+    remoteURL->updatePath(major, minor, index);
+    return remoteURL;
 };
 
 } // namespace planetreplicator

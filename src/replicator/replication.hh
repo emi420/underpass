@@ -279,11 +279,13 @@ class Planet {
 
     /// Process the downloaded file, which require decompressing it
     std::istringstream processData(const std::string &dest, std::vector<unsigned char> &data);
+    std::istringstream _processData(std::vector<unsigned char> &data);
 
     /// \brief downloadFile downloads a file from planet
     /// \param file the full URL or the path part of the URL (such as:
     /// "/replication/changesets/000/001/633.osm.gz"), the host part is taken from remote.domain.
     /// \return RequestedFile object, which includes data and status
+    RequestedFile _downloadFile(const std::string &domain, const std::string &url);
     RequestedFile downloadFile(const std::string &file, const std::string &destdir_base);
     RequestedFile downloadFile(const RemoteURL &remote) {
         std::string str = "https://" + remote.domain + "/" + remote.filespec;

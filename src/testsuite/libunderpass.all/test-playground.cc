@@ -1,5 +1,6 @@
 //
 // Copyright (c) 2020, 2021, 2022, 2023, 2024 Humanitarian OpenStreetMap Team
+// Copyright (c) 2025 Emilio Mariscal
 //
 // This file is part of Underpass.
 //
@@ -20,7 +21,6 @@
 #include <iostream>
 
 int main() {
-    return 0;
 }
 
 // local Variables:

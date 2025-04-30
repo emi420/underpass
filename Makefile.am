@@ -58,6 +58,7 @@ libunderpass_la_SOURCES = \
 	src/osm/osmobjects.cc src/osm/osmobjects.hh \
 	src/replicator/replication.cc src/replicator/replication.hh \
 	src/replicator/planetreplicator.cc src/replicator/planetreplicator.hh \
+	src/replicator/planetindex.cc src/replicator/planetindex.hh \
 	src/replicator/threads.cc src/replicator/threads.hh \
 	src/bootstrap/bootstrap.cc src/bootstrap/bootstrap.hh \
 	src/bootstrap/rawtasker.cc src/bootstrap/rawtasker.hh \
@@ -106,7 +107,6 @@ EXTRA_DIST = \
 	$(SQL_FILES) \
 	src/testsuite \
 	config/priority.geojson \
-	config/replicator/planetreplicator.yaml \
 	doc \
 	dist/debian \
 	utils
@@ -301,3 +301,4 @@ revno.h:
 check: all
 	cd src/testsuite; \
 	$(MAKE) check $(RUNTESTFLAGS)
+

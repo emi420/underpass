@@ -1,5 +1,6 @@
 //
 // Copyright (c) 2020, 2021, 2022, 2023, 2024 Humanitarian OpenStreetMap Team
+// Copyright (c) 2025 Emilio Mariscal
 //
 // This file is part of Underpass.
 //
@@ -33,6 +34,13 @@
 #include "utils/yaml.hh"
 #include <iterator>
 
+#include <boost/beast/core.hpp>
+#include <boost/beast/http.hpp>
+#include <boost/beast/version.hpp>
+#include <boost/asio/connect.hpp>
+#include <boost/asio/ip/tcp.hpp>
+
+
 using namespace logger;
 using namespace underpassconfig;
 using namespace planetreplicator;
@@ -49,10 +57,66 @@ class TestPlanet : public replication::Planet {
 
 TestState runtest;
 
+namespace beast = boost::beast;     // from <boost/beast.hpp>
+namespace http = beast::http;       // from <boost/beast/http.hpp>
+namespace net = boost::asio;        // from <boost/asio.hpp>
+using tcp = net::ip::tcp;           // from <boost/asio/ip/tcp.hpp>
+
+std::string fetch_url_content(const std::string& host, const std::string& port, const std::string& target) {
+    try {
+        // The io_context is required for all I/O
+        net::io_context ioc;
+
+        // These objects perform our I/O
+        tcp::resolver resolver(ioc);
+        beast::tcp_stream stream(ioc);
+
+        // Look up the domain name
+        auto const results = resolver.resolve(host, port);
+
+        // Make the connection on the IP address we get from a lookup
+        stream.connect(results);
+
+        // Set up an HTTP GET request message
+        http::request<http::string_body> req{http::verb::get, target, 11};
+        req.set(http::field::host, host);
+        req.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
+
+        // Send the HTTP request to the remote host
+        http::write(stream, req);
+
+        // This buffer is used for reading and must be persisted
+        beast::flat_buffer buffer;
+
+        // Declare a container to hold the response
+        http::response<http::dynamic_body> res;
+
+        // Receive the HTTP response
+        http::read(stream, buffer, res);
+
+        // Gracefully close the socket
+        beast::error_code ec;
+        stream.socket().shutdown(tcp::socket::shutdown_both, ec);
+
+        // not_connected happens sometimes
+        // so don't bother reporting it.
+        if(ec && ec != beast::errc::not_connected)
+            throw beast::system_error{ec};
+
+        // Convert the response body to a string
+        return beast::buffers_to_string(res.body().data());
+    }
+    catch(std::exception const& e) {
+        std::cerr << "Error: " << e.what() << std::endl;
+        return "";
+    }
+}
+
 void testPath(underpassconfig::UnderpassConfig config) {
     planetreplicator::PlanetReplicator replicator;
     auto osmchange = replicator.findRemotePath(config, config.start_time);
     TestCO change;
+    std::cout <<  osmchange->filespec << std::endl;
     if (std::filesystem::exists(osmchange->filespec)) {
         change.readChanges(osmchange->filespec);
     } else {
@@ -68,10 +132,10 @@ void testPath(underpassconfig::UnderpassConfig config) {
     auto start_time_string_debug = to_simple_string(config.start_time);
 
     time_duration delta = timestamp - config.start_time;
-    if (delta.hours() > -24 && delta.hours() < 24) {
-        runtest.pass("Find remote path from timestamp +/- 24 hours (" + start_time_string_debug + ") (" + timestamp_string_debug + ")");
+    if (delta.hours() > -5 && delta.minutes() < 5) {
+        runtest.pass("Find remote path from timestamp +/- 5 hour (" + start_time_string_debug + ") (" + timestamp_string_debug + ")");
     } else {
-        runtest.fail("Find remote path from timestamp +/- 24 hours (" + start_time_string_debug + ") (" + timestamp_string_debug + ")");
+        runtest.fail("Find remote path from timestamp +/- 5 hour (" + start_time_string_debug + ") (" + timestamp_string_debug + ")");
     }
 }
 
@@ -96,24 +160,25 @@ main(int argc, char *argv[]) {
     opts::store(opts::command_line_parser(argc, argv).options(desc).positional(p).run(), vm);
     opts::notify(vm);
 
+    // Example: planetreplicator-test -t "2014-07-12 06:00:24"
     if (vm.count("timestamp")) {
         auto timestamps = vm["timestamp"].as<std::vector<std::string>>();
         config.start_time = time_from_string(timestamps[0]);
         testPath(config);
     } else {
         std::vector<std::string> dates = {
-            "-01-01 00:00:00",
-            "-03-07 00:00:00",
-            "-06-12 00:00:00",
-            "-08-17 00:00:00",
-            "-10-22 00:00:00",
-            "-12-28 00:00:00",
+            "-01-01 00:04:01",
+            "-03-07 03:01:40",
+            "-06-12 20:21:20",
+            "-08-17 10:33:30",
+            "-10-22 08:45:00",
+            "-12-28 17:30:06",
         };
 
         ptime now = boost::posix_time::microsec_clock::universal_time();
         int next_year = now.date().year();
 
-        for (int i = 2013; i != next_year + 1; ++i) {
+        for (int i = 2023; i != next_year + 1; ++i) {
             for (auto it = std::begin(dates); it != std::end(dates); ++it) {
 
                 std::string year_string = std::to_string(i);

@@ -103,8 +103,6 @@ practical. Once the proper data file is found, then it's easy to just
 download the next data file in sequence.
 
 Currently, the function `PlanetReplicator::findRemotePath` is the one
-responsible for returning the file path from a timestamp. It's using
-a list of of timestamps and sequence numbers stored in a local file
-located in `config/replicator/confiplanetreplicator.yaml` for 
-calculating the path. This approach must be reviewed in order to
-have better precision without the need of keeping that file up-to-date.
+responsible for returning the file path from a timestamp. It's downloading
+HTML pages from a planet server, parsing paths and timestamp, and 
+looking for the closest one.

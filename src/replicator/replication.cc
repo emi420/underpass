@@ -282,6 +282,25 @@ Planet::processData(const std::string &dest, std::vector<unsigned char> &data)
     return xml;
 }
 
+std::istringstream
+Planet::_processData(std::vector<unsigned char> &data)
+{
+    std::istringstream xml;
+    try {
+        {   // Scope to deallocate buffers
+            boost::iostreams::filtering_streambuf<boost::iostreams::input> inbuf;
+            boost::iostreams::array_source arrs{reinterpret_cast<char const *>(data.data()), data.size()};
+            inbuf.push(arrs);
+            std::istream instream(&inbuf);
+            xml.str(std::string{std::istreambuf_iterator<char>(instream), {}});
+        }
+    } catch (std::exception &e) {
+        log_error("File is corrupted!");
+        std::cerr << e.what() << std::endl;
+    }
+    return xml;
+}
+
 // Download a file from planet
 RequestedFile
 Planet::downloadFile(const std::string &url, const std::string &destdir_base)
@@ -402,6 +421,109 @@ Planet::downloadFile(const std::string &url, const std::string &destdir_base)
     file.status = reqfile_t::success;
     return file;
 }
+
+// Download a file from planet
+RequestedFile
+Planet::_downloadFile(const std::string &domain, const std::string &url)
+{
+
+    RequestedFile file;
+
+    file.data = std::make_shared<std::vector<unsigned char>>();
+
+    // The io_context is required for all I/O
+    boost::asio::io_context ioc;
+
+    // The SSL context is required, and holds certificates
+    ssl::context ctx{ssl::context::sslv23_client};
+
+    // Verify the remote server's certificate
+    ctx.set_verify_mode(ssl::verify_none);
+
+    // These objects perform our I/O
+    tcp::resolver resolver{ioc};
+    ssl::stream<tcp::socket> stream{ioc, ctx};
+
+    // Look up the domain name
+    auto const results = resolver.resolve(domain, std::to_string(port));
+    try {
+        // Make the connection on the IP address we get from a lookup
+        boost::asio::connect(stream.next_layer(), results.begin(), results.end());
+        // Perform the SSL handshake
+        stream.handshake(ssl::stream_base::client);
+    } catch (boost::system::system_error ex) {
+        log_error("stream write failed: %1%", ex.what());
+        file.status = reqfile_t::systemError;
+        return file;
+    }
+
+    // Set up an HTTP GET request message
+    http::request<http::string_body> req{http::verb::get, url, version};
+
+    req.keep_alive();
+
+    // We want the host only: strip the rest
+    static const std::regex re(R"raw(^(?:https?://)?([^/]+).*)raw");
+    std::string host{domain};
+    host = std::regex_replace(host, re, "$1");
+
+    req.set(http::field::host, host);
+    req.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
+    // Send the HTTP request to the remote host
+    try {
+        http::write(stream, req);
+        // log_debug("Downloading %1% ... ", url);
+    } catch (boost::system::system_error ex) {
+        log_error("stream write failed: %1%", ex.what());
+        file.status = reqfile_t::systemError;
+        return file;
+    }
+
+    // This buffer is used for reading and must be persistant
+    boost::beast::flat_buffer buffer;
+
+    // Receive the HTTP response
+    http::response_parser<http::string_body> parser;
+
+    try {
+        read(stream, buffer, parser);
+
+        if (parser.get().result() == boost::beast::http::status::not_found ||
+            parser.get().result() == boost::beast::http::status::gateway_timeout) {
+            log_error("Remote file not found: %1%", url);
+            file.status = reqfile_t::remoteNotFound;
+            return file;
+        } else {
+            // Check the magic number of the file
+            const auto is_gzipped{parser.get().body()[0] == 0x1f};
+            std::shared_ptr<std::vector<unsigned char>> data;
+            for (auto body = std::begin(parser.get().body()); body != std::end(parser.get().body()); ++body) {
+                file.data->push_back(static_cast<unsigned char>(*body));
+            }
+
+            // Add the last newline back if not gzipped (or we'll get decompression error: unexpected end of file)
+            if (!is_gzipped) {
+                file.data->push_back('\n');
+            }
+        }
+
+    } catch (boost::system::system_error ex) {
+        log_error("stream read failed: %1%", ex.what());
+    }
+
+    // Gracefully close the stream
+    beast::error_code ec;
+    stream.shutdown(ec);
+    if (ec == net::error::eof) {
+        // Rationale:
+        // http://stackoverflow.com/questions/25587403/boost-asio-ssl-async-shutdown-always-finishes-with-an-error
+        ec = {};
+    }
+
+    file.status = reqfile_t::success;
+    return file;
+}
+
 
 RequestedFile
 Planet::readFile(std::string &filespec) {
