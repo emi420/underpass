@@ -29,6 +29,7 @@
 #include <string>
 #include <vector>
 #include <sstream>
+#include <fstream>
 
 #include "utils/log.hh"
 using namespace logger;
@@ -198,6 +199,24 @@ Pq::escapedJSON(const std::string &s) {
         }
     }
     return o.str();
+}
+
+pqxx::result
+Pq::queryFile(const fs::path& file_path)
+{
+    // Read entire file into memory
+    std::ifstream file(file_path.string());
+    if (!file.is_open()) {
+        throw std::runtime_error("Could not open SQL file: " + file_path.string());
+    }
+
+    std::string sql_content(
+        (std::istreambuf_iterator<char>(file)),
+        std::istreambuf_iterator<char>()
+    );
+
+    // Execute
+    return query(sql_content);
 }
 
 } // namespace pq

@@ -180,29 +180,7 @@ main(int argc, char *argv[])
 
     // Used to store timestamp information for running Underpass
     std::vector<std::string> timestamps;
-
-    // Dump config
-    if (vm.count("config")) {
-        config.dump();
-        exit(0);
-    }
-    
-    // Bootstrapping
-    if (vm.count("import")){
-        config.import = vm["import"].as<std::string>();
-        std::thread bootstrapThread;
-        std::cout << "Initializing ..." << std::endl;
-        auto boostrapper = bootstrap::Bootstrap();
-        bootstrapThread = std::thread(&bootstrap::Bootstrap::start, &boostrapper, std::ref(config));
-        log_info("Waiting...");
-        if (bootstrapThread.joinable()) {
-            bootstrapThread.join();
-        }
-        // For running the replicator process
-        timestamps.push_back("latest");
-    }
-
-    if (timestamps.size() == 0 && vm.count("timestamp")) {
+    if (vm.count("timestamp")) {
         // Specify a timestamp used by other options
         if (vm.count("timestamp")) {
             try {
@@ -213,10 +191,45 @@ main(int argc, char *argv[])
             }
         }
     }
+    if (timestamps.size() > 0 && timestamps[0] == "latest") {
+        config.latest = true;
+    }
+
+    // Dump config
+    if (vm.count("config")) {
+        config.dump();
+        exit(0);
+    }
+    
+    // Bootstrapping
+    if (vm.count("import")){
+
+        auto boostrapper = bootstrap::Bootstrap();
+        boostrapper.start(config);
+
+        // Initialize DB (create tables, etc ...)
+        std::cout << "Initializing DB ..." << std::endl;
+        boostrapper.initializeDB();
+
+        config.import = vm["import"].as<std::string>();
+        std::thread bootstrapThread;
+        bootstrapThread = std::thread(&bootstrap::Bootstrap::start, &boostrapper, std::ref(config));
+        log_info("Waiting...");
+        if (bootstrapThread.joinable()) {
+            bootstrapThread.join();
+        }
+        // For running the replicator process
+        timestamps.push_back("latest");
+        config.latest = true;
+
+        // Create DB indexes
+        std::cout << "Creating indexes ..." << std::endl;
+        boostrapper.createDBIndexes();
+
+    }
 
     // Use latest timestamp in the DB as start time
-    if (timestamps[0] == "latest") {
-        config.latest = true;
+    if (config.latest) {
         auto boostrapper = bootstrap::Bootstrap();
         boostrapper.start(config);
         config.start_time = boostrapper.getLatestTimestamp();
@@ -266,6 +279,7 @@ main(int argc, char *argv[])
         }
 
         // Priority boundary
+
         multipolygon_t poly;
         if (vm.count("boundary")) {
             boundary = vm["boundary"].as<std::string>();

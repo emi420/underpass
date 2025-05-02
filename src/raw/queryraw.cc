@@ -1227,7 +1227,6 @@ QueryRaw::getLatestTimestamp() {
     return cleanTimeStr(result[0][0].as<std::string>());
 }
 
-
 } // namespace queryraw
 
 // local Variables:

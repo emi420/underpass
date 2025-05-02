@@ -122,9 +122,11 @@ endif
 install-data-hook:
 	$(MKDIR_P) $(DESTDIR)$(ETCDIR)
 	cp -rvp $(srcdir)/config/priority.geojson  $(DESTDIR)$(ETCDIR)/
-	cp -rvp $(srcdir)/config/replicator  $(DESTDIR)$(ETCDIR)/
 	cp -rvp $(srcdir)/config/default.yaml  $(DESTDIR)$(ETCDIR)/
 	cp -rvp $(srcdir)/setup/service $(DESTDIR)/$(pkglibdir)
+	$(MKDIR_P) $(DESTDIR)$(ETCDIR)/setup/
+	cp -rvp $(srcdir)/setup/db/underpass.sql $(DESTDIR)$(ETCDIR)/setup/
+	cp -rvp $(srcdir)/setup/db/indexes.sql $(DESTDIR)$(ETCDIR)/setup/
 	$(MKDIR_P) $(DESTDIR)$(pkglibdir)/../system
 	cp -rvp $(srcdir)/setup/service/underpass.service  $(DESTDIR)$(pkglibdir)/../system/
 

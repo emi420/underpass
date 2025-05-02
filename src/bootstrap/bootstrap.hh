@@ -32,6 +32,8 @@ class Bootstrap {
 
     void start(const underpassconfig::UnderpassConfig &config);
     boost::posix_time::ptime getLatestTimestamp(void);
+    void initializeDB(void);
+    void createDBIndexes(void);
 
     private:
       std::shared_ptr<Pq> db;

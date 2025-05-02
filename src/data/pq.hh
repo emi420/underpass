@@ -38,6 +38,9 @@
 #include <vector>
 #include <mutex>
 
+#include <boost/filesystem.hpp>
+namespace fs = boost::filesystem;
+
 /// \namespace pq
 namespace pq {
 
@@ -71,6 +74,9 @@ class Pq {
 
     // Database connection
     std::shared_ptr<pqxx::connection> sdb;
+
+    // Execute SQL files
+    pqxx::result queryFile(const fs::path& file_path);
 
     //protected:
     pqxx::result result;  ///< The result from a query

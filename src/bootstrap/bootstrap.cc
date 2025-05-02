@@ -36,7 +36,6 @@ namespace bootstrap {
 
     void
     Bootstrap::connect(const std::string &db_url) {
-        std::cout << "Connecting to underpass database ... " << std::endl;
         db = std::make_shared<Pq>();
         if (!db->connect(db_url)) {
             log_error("Could not connect to Underpass DB, aborting bootstrapping thread!");
@@ -77,6 +76,20 @@ namespace bootstrap {
     boost::posix_time::ptime
     Bootstrap::getLatestTimestamp(void) {
         return queryraw->getLatestTimestamp();
+    }
+
+    void
+    Bootstrap::initializeDB(void) {
+        std::string filepath = ETCDIR;
+        filepath += "/setup/underpass.sql";
+        db->queryFile(filepath);
+    }
+
+    void
+    Bootstrap::createDBIndexes(void) {
+        std::string filepath = ETCDIR;
+        filepath += "/setup/indexes.sql";
+        db->queryFile(filepath);
     }
 
 }
