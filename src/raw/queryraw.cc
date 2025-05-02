@@ -1212,10 +1212,10 @@ boost::posix_time::ptime cleanTimeStr(std::string timestampStr) {
     return from_iso_extended_string(cleanedTimeStr);;
 }
 
-// Returns latest timestamp from DB
+// Returns latest timestamp from DB - 5 hours
 boost::posix_time::ptime
 QueryRaw::getLatestTimestamp() {
-    auto result = dbconn->query("SELECT MAX(max_timestamp) FROM ( \
+    auto result = dbconn->query("SELECT MAX(max_timestamp) - INTERVAL '5 hours' FROM ( \
         SELECT MAX(timestamp) AS max_timestamp FROM nodes \
         UNION ALL \
         SELECT MAX(timestamp) FROM ways_line \

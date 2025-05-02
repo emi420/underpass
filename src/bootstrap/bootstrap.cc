@@ -61,17 +61,15 @@ namespace bootstrap {
         std::cout << "Processing relations  (geometries)..." << std::endl;
         osmProcessor.relationsGeometries();
 
-        // TODO: launch replicator (optional)
-
     }
 
     void
     Bootstrap::start(const underpassconfig::UnderpassConfig &config) {
         connect(config.underpass_db_url);
         queryraw = std::make_shared<QueryRaw>(db);
-        queryraw->onConflict = false;
+        // queryraw->onConflict = false;
         std::string pbf = config.import;
-        if (!pbf.empty()) {
+        if (!config.latest && !pbf.empty()) {
             processPBF(pbf, config.bootstrap_page_size, config.concurrency);
         }
     }

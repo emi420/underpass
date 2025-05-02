@@ -168,6 +168,7 @@ struct UnderpassConfig {
 
     bool norefs = false;
     bool silent = false;
+    bool latest = false;
 
     ///
     /// \brief getPlanetServer returns either the command line supplied planet server
@@ -207,6 +208,15 @@ struct UnderpassConfig {
             )raw") % underpass_db_url
         );
     };
+
+    void dump() const
+    {
+        std::cout << "[Underpass config]" << std::endl;
+        std::cout << "underpass_db_url: " << underpass_db_url << std::endl;
+        std::cout << "destdir_base: " << destdir_base << std::endl;
+        std::cout << "concurrency: " << concurrency << std::endl;
+        std::cout << "bootstrap_page_size: " << bootstrap_page_size << std::endl;
+    }
 };
 
 } // namespace underpassconfig

@@ -117,6 +117,7 @@ main(int argc, char *argv[])
             ("osmchanges", "OsmChanges only")
             ("debug,d", "Enable debug messages for developers")
             ("norefs", "Disable refs (useful for non OSM data)")
+            ("config", "Dump config")
             ("import,i", opts::value<std::string>(), "Initialize OSM database with OSM PBF datafile")
             ("silent", "Silent");
         // clang-format on
@@ -177,6 +178,15 @@ main(int argc, char *argv[])
         config.concurrency = std::thread::hardware_concurrency();
     }
 
+    // Used to store timestamp information for running Underpass
+    std::vector<std::string> timestamps;
+
+    // Dump config
+    if (vm.count("config")) {
+        config.dump();
+        exit(0);
+    }
+    
     // Bootstrapping
     if (vm.count("import")){
         config.import = vm["import"].as<std::string>();
@@ -188,12 +198,11 @@ main(int argc, char *argv[])
         if (bootstrapThread.joinable()) {
             bootstrapThread.join();
         }
-        // TODO: exit should be optional
-        exit(0);
+        // For running the replicator process
+        timestamps.push_back("latest");
     }
 
-    std::vector<std::string> timestamps;
-    if (vm.count("timestamp")) {
+    if (timestamps.size() == 0 && vm.count("timestamp")) {
         // Specify a timestamp used by other options
         if (vm.count("timestamp")) {
             try {
@@ -207,13 +216,14 @@ main(int argc, char *argv[])
 
     // Use latest timestamp in the DB as start time
     if (timestamps[0] == "latest") {
+        config.latest = true;
         auto boostrapper = bootstrap::Bootstrap();
         boostrapper.start(config);
         config.start_time = boostrapper.getLatestTimestamp();
-        std::cout << "config.start_time: " << config.start_time << std::endl;
+        std::cout << "Starting ..." << std::endl << std::endl;
     }
 
-    if (vm.count("timestamp") || vm.count("url") ||  vm.count("changeseturl")) {
+    if (timestamps.size() > 0 || vm.count("url") ||  vm.count("changeseturl")) {
 
         // Planet server
         if (vm.count("planet")) {
@@ -279,21 +289,27 @@ main(int argc, char *argv[])
 
         auto osmchange = std::make_shared<RemoteURL>();
         // Specify a timestamp used by other options
-        if (vm.count("timestamp")) {
-            try {
-                if (timestamps[0] == "now") {
-                    config.start_time = boost::posix_time::second_clock::universal_time();
-                } else {
-                    config.start_time = from_iso_extended_string(timestamps[0]);
-                    if (timestamps.size() > 1) {
-                        config.end_time = from_iso_extended_string(timestamps[1]);
+        if (timestamps.size() > 0) {
+            if (config.start_time == not_a_date_time) {
+                try {
+                    if (timestamps[0] == "now") {
+                        config.start_time = boost::posix_time::second_clock::universal_time();
+                    } else {
+                        config.start_time = from_iso_extended_string(timestamps[0]);
+                        if (timestamps.size() > 1) {
+                            config.end_time = from_iso_extended_string(timestamps[1]);
+                        }
                     }
+                } catch (const std::exception &ex) {
+                    log_error("could not parse timestamps!");
+                    exit(-1);
                 }
-                osmchange = replicator.findRemotePath(config, config.start_time);
-            } catch (const std::exception &ex) {
-                log_error("could not parse timestamps!");
-                exit(-1);
             }
+
+            osmchange = replicator.findRemotePath(config, config.start_time);
+            osmchange->dump();
+
+
         } else if (vm.count("url")) {
             replicator.connectServer("https://" + config.planet_server);
             std::string fullurl = "https://" + config.planet_server + "/replication/" + StateFile::freq_to_string(config.frequency);
