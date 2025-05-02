@@ -50,7 +50,7 @@ Example:
 wget https://download.geofabrik.de/europe/andorra-latest.osm.pbf
 wget https://download.geofabrik.de/europe/andorra.poly
 python utils/poly2geojson.py andorra.poly
-underpass -s localhost/underpass -i test/andorra-latest.osm.pbf -b test/andorra.geojson
+underpass -s localhost/underpass -i andorra-latest.osm.pbf -b andorra.geojson
 ```
 
 If the process has stopped, you can continue from latest processed timestamp:
