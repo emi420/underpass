@@ -67,7 +67,7 @@ mkdir build && cd build
 make -j$(nproc) && sudo make install
 ```
 
-## MacOS (Sillicon)
+## MacOS (Silicon)
 
 The process is similar to Intel but adding `-arch arm64` to `CXXFLAGS`:
 

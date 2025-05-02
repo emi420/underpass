@@ -1,6 +1,7 @@
 #!/bin/bash
 #
 # Copyright (c) 2024 Humanitarian OpenStreetMap Team
+# Copyright (c) 2025 Emilio Mariscal
 #
 # This file is part of Underpass.
 #
@@ -56,4 +57,10 @@ ln -s /usr/local/lib/libboost_serialization.dylib .libs
 ln -s /usr/local/lib/libboost_regex.dylib .libs
 
 echo "Done! now you may want to initialize the database with"
-echo "underpass -i your_file.osm.pbf"
+echo "underpass -s <DB> -i <PBF file path> -b <GeoJSON priority boundary>"
+echo ""
+echo "Example: "
+echo "wget https://download.geofabrik.de/europe/andorra-latest.osm.pbf"
+echo "wget https://download.geofabrik.de/europe/andorra.poly"
+echo "python utils/poly2geojson.py andorra.poly"
+echo "underpass -i andorra-latest.osm.pbf -s localhost/underpass -b andorra.geojson"

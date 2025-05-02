@@ -1,25 +1,25 @@
 ## Keep the database up-to-date minutely
 
-### Linux
+1. Download OSM PBF and GeoJSON priority boundary files
+2. Run `underpass -s <DB> -i <PBF file path> -b <GeoJSON priority boundary>`
 
-Run this command for start processing data from 2 days ago:
+Example:
 
-`underpass -t $(date +%Y-%m-%dT%H:%M:%S -d "2 days ago")`
+```bash
+wget https://download.geofabrik.de/europe/andorra-latest.osm.pbf
+wget https://download.geofabrik.de/europe/andorra.poly
+python utils/poly2geojson.py andorra.poly
+underpass -i andorra-latest.osm.pbf -s localhost/underpass -b andorra.geojson
+```
 
-### MacOS
+If the process has stopped, you can continue from latest processed timestamp:
 
-On MacOS, the date command is slighty different:
+```bash
+underpass --latest -s localhost/underpass -b andorra.geojson
+```
 
-`underpass -t $(date -v -2d +%Y-%m-%dT%H:%M:%S)`
+If the process has stopped, you can continue from latest processed timestamp:
 
-### Docker
-
-If you're running Underpass on a Docker container:
-
-`docker exec underpass underpass -t $(date +%Y-%m-%dT%H:%M:%S -d "2 days ago")`
-
-For running as a daemon:
-
-`docker exec -d underpass underpass -t $(date -v -2d +%Y-%m-%dT%H:%M:%S)`
-
-
+```bash
+underpass --latest -s localhost/underpass -b andorra.geojson
+```
