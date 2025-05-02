@@ -58,7 +58,7 @@ underpass -s localhost/underpass -i andorra-latest.osm.pbf -b andorra.geojson
 If the process has stopped, you can continue from latest processed timestamp:
 
 ```bash
-underpass --latest
+underpass --latest -s localhost/underpass -i andorra-latest.osm.pbf -b andorra.geojson
 ```
 
 ### Visualize data
