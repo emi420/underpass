@@ -18,8 +18,3 @@ If the process has stopped, you can continue from latest processed timestamp:
 underpass --latest -s localhost/underpass -b andorra.geojson
 ```
 
-If the process has stopped, you can continue from latest processed timestamp:
-
-```bash
-underpass --latest -s localhost/underpass -b andorra.geojson
-```
