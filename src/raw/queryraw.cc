@@ -1206,6 +1206,28 @@ QueryRaw::getRelationsFromDB(long lastid, int pageSize) {
     return relations;
 }
 
+boost::posix_time::ptime cleanTimeStr(std::string timestampStr) {
+    std::string cleanedTimeStr = timestampStr.substr(0, 19); // keep only "YYYY-MM-DD HH:MM:SS"
+    std::replace(cleanedTimeStr.begin(), cleanedTimeStr.end(), ' ', 'T');
+    return from_iso_extended_string(cleanedTimeStr);;
+}
+
+// Returns latest timestamp from DB
+boost::posix_time::ptime
+QueryRaw::getLatestTimestamp() {
+    auto result = dbconn->query("SELECT MAX(max_timestamp) FROM ( \
+        SELECT MAX(timestamp) AS max_timestamp FROM nodes \
+        UNION ALL \
+        SELECT MAX(timestamp) FROM ways_line \
+        UNION ALL \
+        SELECT MAX(timestamp) FROM ways_poly \
+        UNION ALL \
+        SELECT MAX(timestamp) FROM relations \
+        ) AS combined;");
+    return cleanTimeStr(result[0][0].as<std::string>());
+}
+
+
 } // namespace queryraw
 
 // local Variables:

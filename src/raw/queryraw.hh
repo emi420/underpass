@@ -96,6 +96,8 @@ class QueryRaw {
     std::shared_ptr<std::vector<OsmNode>> getNodesFromDB(long lastid, int pageSize);
     // Get relations by page
     std::shared_ptr<std::vector<OsmRelation>> getRelationsFromDB(long lastid, int pageSize);
+    // Get latest timestamp from DB
+    boost::posix_time::ptime getLatestTimestamp(void);
 
 };
 

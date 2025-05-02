@@ -49,8 +49,6 @@ namespace bootstrap {
     Bootstrap::processPBF(std::string &pbf, int page_size, int concurrency) {
         std::cout << "Processing PBF ... (" << pbf << ")" << std::endl;
 
-        auto queryraw = std::make_shared<QueryRaw>(db);
-        queryraw->onConflict = false;
         auto rawTasker = std::make_shared<RawTasker>(db, queryraw, page_size, concurrency);
         auto osmProcessor = OsmProcessor(rawTasker, pbf);
 
@@ -63,17 +61,24 @@ namespace bootstrap {
         std::cout << "Processing relations  (geometries)..." << std::endl;
         osmProcessor.relationsGeometries();
 
+        // TODO: launch replicator (optional)
+
     }
 
     void
     Bootstrap::start(const underpassconfig::UnderpassConfig &config) {
         connect(config.underpass_db_url);
+        queryraw = std::make_shared<QueryRaw>(db);
+        queryraw->onConflict = false;
         std::string pbf = config.import;
-        if (pbf.empty()) {
-            std::cout << "Usage: underpass --import <PBF file>" << std::endl;
-            return;
+        if (!pbf.empty()) {
+            processPBF(pbf, config.bootstrap_page_size, config.concurrency);
         }
-        processPBF(pbf, config.bootstrap_page_size, config.concurrency);
+    }
+
+    boost::posix_time::ptime
+    Bootstrap::getLatestTimestamp(void) {
+        return queryraw->getLatestTimestamp();
     }
 
 }

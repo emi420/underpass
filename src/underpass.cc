@@ -177,6 +177,42 @@ main(int argc, char *argv[])
         config.concurrency = std::thread::hardware_concurrency();
     }
 
+    // Bootstrapping
+    if (vm.count("import")){
+        config.import = vm["import"].as<std::string>();
+        std::thread bootstrapThread;
+        std::cout << "Initializing ..." << std::endl;
+        auto boostrapper = bootstrap::Bootstrap();
+        bootstrapThread = std::thread(&bootstrap::Bootstrap::start, &boostrapper, std::ref(config));
+        log_info("Waiting...");
+        if (bootstrapThread.joinable()) {
+            bootstrapThread.join();
+        }
+        // TODO: exit should be optional
+        exit(0);
+    }
+
+    std::vector<std::string> timestamps;
+    if (vm.count("timestamp")) {
+        // Specify a timestamp used by other options
+        if (vm.count("timestamp")) {
+            try {
+                timestamps = vm["timestamp"].as<std::vector<std::string>>();
+            } catch (const std::exception &ex) {
+                log_error("could not parse timestamps!");
+                exit(-1);
+            }
+        }
+    }
+
+    // Use latest timestamp in the DB as start time
+    if (timestamps[0] == "latest") {
+        auto boostrapper = bootstrap::Bootstrap();
+        boostrapper.start(config);
+        config.start_time = boostrapper.getLatestTimestamp();
+        std::cout << "config.start_time: " << config.start_time << std::endl;
+    }
+
     if (vm.count("timestamp") || vm.count("url") ||  vm.count("changeseturl")) {
 
         // Planet server
@@ -245,7 +281,6 @@ main(int argc, char *argv[])
         // Specify a timestamp used by other options
         if (vm.count("timestamp")) {
             try {
-                auto timestamps = vm["timestamp"].as<std::vector<std::string>>();
                 if (timestamps[0] == "now") {
                     config.start_time = boost::posix_time::second_clock::universal_time();
                 } else {
@@ -330,20 +365,6 @@ main(int argc, char *argv[])
 
         exit(0);
 
-    }
-
-    // Bootstrapping
-    if (vm.count("import")){
-        config.import = vm["import"].as<std::string>();
-        std::thread bootstrapThread;
-        std::cout << "Initializing ..." << std::endl;
-        auto boostrapper = bootstrap::Bootstrap();
-        bootstrapThread = std::thread(&bootstrap::Bootstrap::start, &boostrapper, std::ref(config));
-        log_info("Waiting...");
-        if (bootstrapThread.joinable()) {
-            bootstrapThread.join();
-        }
-        exit(0);
     }
 
     std::cout << "Usage: options_description [options]" << std::endl;

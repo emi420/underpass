@@ -1,5 +1,6 @@
 //
 // Copyright (c) 2023, 2024 Humanitarian OpenStreetMap Team
+// Copyright (c) 2025 Emilio Mariscal
 //
 // This file is part of Underpass.
 //
@@ -30,6 +31,7 @@ class Bootstrap {
     ~Bootstrap(void){};
 
     void start(const underpassconfig::UnderpassConfig &config);
+    boost::posix_time::ptime getLatestTimestamp(void);
 
     private:
       std::shared_ptr<Pq> db;
