@@ -3,6 +3,8 @@
 Underpass **updates a local copy of the OSM database** in near real-time. 
 It is designed to be **high performance** on modest hardware.
 
+<img width="907" alt="Screenshot 2025-05-02 at 12 07 17 PM" src="https://github.com/user-attachments/assets/0bb7bc16-3b4a-413b-94b1-6e3e138a5ea5" />
+
 ## Getting started
 
 ### Install dependencies
