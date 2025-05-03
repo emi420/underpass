@@ -208,7 +208,12 @@ QueryRaw::applyChange(const OsmNode &node) const
         auto tags = buildTagsQuery(node.tags);
         fmt % tags;
         // timestamp
-        std::string timestamp = to_simple_string(node.timestamp);
+        std::string timestamp;
+        if (node.timestamp != not_a_date_time) {
+            timestamp = to_simple_string(node.timestamp);
+        } else {
+            timestamp = to_simple_string(boost::posix_time::second_clock::universal_time());
+        }
 
         fmt % timestamp;
         // version
@@ -317,7 +322,12 @@ QueryRaw::applyChange(const OsmWay &way) const
                 fmt % geometry;
 
                 // timestamp
-                std::string timestamp = to_simple_string(way.timestamp);
+                std::string timestamp;
+                if (way.timestamp != not_a_date_time) {
+                    timestamp = to_simple_string(way.timestamp);
+                } else {
+                    timestamp = to_simple_string(boost::posix_time::second_clock::universal_time());
+                }
 
                 fmt % timestamp;
                 // version
@@ -363,8 +373,12 @@ QueryRaw::applyChange(const OsmWay &way) const
                 fmt % geometry;
 
                 // Timestamp
-                std::string timestamp = to_simple_string(way.timestamp);
-
+                std::string timestamp;
+                if (way.timestamp != not_a_date_time) {
+                    timestamp = to_simple_string(way.timestamp);
+                } else {
+                    timestamp = to_simple_string(boost::posix_time::second_clock::universal_time());
+                }
                 fmt % timestamp;
 
                 // osm_id
@@ -458,8 +472,12 @@ QueryRaw::applyChange(const OsmRelation &relation) const
                 fmt % geometry;
 
                 // timestamp
-                std::string timestamp = to_simple_string(relation.timestamp);
-
+                std::string timestamp;
+                if (relation.timestamp != not_a_date_time) {
+                    timestamp = to_simple_string(relation.timestamp);
+                } else {
+                    timestamp = to_simple_string(boost::posix_time::second_clock::universal_time());
+                }
                 fmt % timestamp;
                 // version
                 fmt % relation.version;
@@ -504,8 +522,12 @@ QueryRaw::applyChange(const OsmRelation &relation) const
                 fmt % geometry;
 
                 // Timestamp
-                std::string timestamp = to_simple_string(relation.timestamp);
-
+                std::string timestamp;
+                if (relation.timestamp != not_a_date_time) {
+                    timestamp = to_simple_string(relation.timestamp);
+                } else {
+                    timestamp = to_simple_string(boost::posix_time::second_clock::universal_time());
+                }
                 fmt % timestamp;
 
                 // osm_id
