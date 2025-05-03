@@ -52,6 +52,9 @@ Example:
 wget https://download.geofabrik.de/europe/andorra-latest.osm.pbf
 wget https://download.geofabrik.de/europe/andorra.poly
 python utils/poly2geojson.py andorra.poly
+```
+
+```bash
 underpass -i andorra-latest.osm.pbf -s localhost/underpass -b andorra.geojson
 ```
 
