@@ -1,5 +1,6 @@
 //
 // Copyright (c) 2023, 2024 Humanitarian OpenStreetMap Team
+// Copyright (c) 2025 Emilio Mariscal
 //
 // This file is part of Underpass.
 //
@@ -29,6 +30,8 @@
 #include "unconfig.h"
 #endif
 
+#include <map>
+#include <string>
 #include <iostream>
 #include <boost/timer/timer.hpp>
 #include <boost/format.hpp>
@@ -36,15 +39,12 @@
 #include <boost/lexical_cast.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
-#include <map>
-#include <string>
+#include <boost/timer/timer.hpp>
 #include "utils/log.hh"
 #include "data/pq.hh"
 #include "raw/queryraw.hh"
 #include "osm/osmobjects.hh"
 #include "osm/osmchange.hh"
-
-#include <boost/timer/timer.hpp>
 
 using namespace pq;
 using namespace logger;
@@ -55,122 +55,13 @@ namespace bg = boost::geometry;
 /// \namespace queryraw
 namespace queryraw {
 
-QueryRaw::QueryRaw(void) {}
-
 QueryRaw::QueryRaw(std::shared_ptr<Pq> db) {
     dbconn = db;
+    utils = std::make_shared<DataUtils>(db);
 }
 
-// Receives a dictionary of tags (key: value) and returns
-// a JSONB string for doing an insert operation into the database.
-std::string
-QueryRaw::buildTagsQuery(std::map<std::string, std::string> tags) const {
-    if (tags.size() > 0) {
-        std::string tagsStr = "jsonb_build_object(";
-        int count = 0;
-        for (auto it = std::begin(tags); it != std::end(tags); ++it) {
-            ++count;
-            // PostgreSQL has an argument LIMIT for functions (100 parameters max)
-            // Because of this, when the count of key/value pairs reaches 50, 
-            // a concatenation of multiple calls to the jsonb_build_object() function 
-            // is needed.
-            if (count == 50) {
-                tagsStr.erase(tagsStr.size() - 1);
-                tagsStr += ") || jsonb_build_object(";
-                count = 0;
-            }
-            std::string tag_format = "'%s', '%s',";
-            boost::format tag_fmt(tag_format);
-            tag_fmt % dbconn->escapedString(dbconn->escapedJSON(it->first));
-            tag_fmt % dbconn->escapedString(dbconn->escapedJSON(it->second));
-            tagsStr += tag_fmt.str();
-        }
-        tagsStr.erase(tagsStr.size() - 1);
-        return tagsStr + ")";
-    } else {
-        return "null";
-    }
-}
-
-// Receives a list of Relation members and returns
-// a JSONB string for doing an insert operation into the database.
-std::string
-buildMembersQuery(std::list<OsmRelationMember> members) {
-    if (members.size() > 0) {
-        std::string membersStr = "'[";
-        for (auto mit = std::begin(members); mit != std::end(members); ++mit) {
-            membersStr += "{";
-            std::string member_format = "\"%s\": \"%s\",";
-            boost::format member_fmt(member_format);
-            member_fmt % "role";
-            member_fmt % mit->role;
-            membersStr += member_fmt.str();
-            member_fmt % "type";
-            switch(mit->type) {
-                case osmobjects::osmtype_t::way:
-                    member_fmt % "way"; break;
-                case osmobjects::osmtype_t::node:
-                    member_fmt % "node"; break;
-                case osmobjects::osmtype_t::relation:
-                    member_fmt % "relation"; break;
-                default:
-                    member_fmt % "";
-            }
-            membersStr += member_fmt.str();
-            membersStr += "\"ref\":";
-            membersStr += std::to_string(mit->ref);
-            membersStr += "},";
-        }
-        membersStr.erase(membersStr.size() - 1);
-
-        return membersStr += "]'";
-    } else {
-        return "null";
-    }
-}
-
-// Parses a JSON object from a string and return a map of key/value.
-// This function is useful for parsing tags from a query result.
-std::map<std::string, std::string> parseJSONObjectStr(std::string input) {
-    std::map<std::string, std::string> obj;
-    boost::property_tree::ptree pt;
-    try {
-        std::istringstream jsonStream(input);
-        boost::property_tree::read_json(jsonStream, pt);
-    } catch (const boost::property_tree::json_parser::json_parser_error& e) {
-        std::cerr << "Error parsing JSON: " << e.what() << std::endl;
-        return obj;
-    }
-    for (const auto& pair : pt) {
-        obj[pair.first] = pair.second.get_value<std::string>();
-    }
-    return obj;
-}
-
-// Parses a JSON object from a string and return a vector of key/value maps
-// This function is useful for parsing relation members from a query result.
-std::vector<std::map<std::string, std::string>> parseJSONArrayStr(std::string input) {
-    std::vector<std::map<std::string, std::string>> arr;
-    boost::property_tree::ptree pt;
-    try {
-        std::istringstream jsonStream(input);
-        boost::property_tree::read_json(jsonStream, pt);
-    } catch (const boost::property_tree::json_parser::json_parser_error& e) {
-        std::cerr << "Error parsing JSON: " << e.what() << std::endl;
-        return arr;
-    }
-
-    for (const auto& item : pt) {
-        std::map<std::string, std::string> obj;
-        for (const auto& pair : item.second) {
-            obj[pair.first] = pair.second.get_value<std::string>();
-        }
-        arr.push_back(obj);
-    }
-
-    return arr;
-}
-
+const std::string QueryRaw::polyTable = "ways_poly";
+const std::string QueryRaw::lineTable = "ways_line";
 
 // Apply the change for a Node. It will return a string of a query for
 // insert, update or delete the Node in the database.
@@ -205,7 +96,7 @@ QueryRaw::applyChange(const OsmNode &node) const
         fmt % geometry;
 
         // tags
-        auto tags = buildTagsQuery(node.tags);
+        auto tags = utils->buildTagsQuery(node.tags);
         fmt % tags;
         // timestamp
         std::string timestamp;
@@ -249,9 +140,6 @@ QueryRaw::applyChange(const OsmNode &node) const
     return queries;
 }
 
-const std::string QueryRaw::polyTable = "ways_poly";
-const std::string QueryRaw::lineTable = "ways_line";
-
 // Apply the change for a Way. It will return a string of a query for
 // insert, update or delete the Way in the database.
 std::shared_ptr<std::vector<std::string>>
@@ -263,8 +151,9 @@ QueryRaw::applyChange(const OsmWay &way) const
     // - At least 2 points
     // - A LineString or a Polygon
     // - A create, modify or "modify geometry" action.
-    if (way.refs.size() > 0
-        && (way.action == osmobjects::create || way.action == osmobjects::modify || way.action == osmobjects::modify_geom)) {
+    if ((bg::num_points(way.linestring) >= 2 || bg::num_points(way.polygon) >= 2)
+        && (way.action == osmobjects::create || way.action == osmobjects::modify
+        || way.action == osmobjects::modify_geom)) {
         if ((way.refs.front() != way.refs.back() && way.refs.size() == bg::num_points(way.linestring)) ||
             (way.refs.front() == way.refs.back() && way.refs.size() == bg::num_points(way.polygon))
          ) {
@@ -274,6 +163,7 @@ QueryRaw::applyChange(const OsmWay &way) const
 
             // Get a Polygon or LineString geometry string depending on the Way
             std::stringstream ss;
+
             if (way.isClosed()) {
                 tableName = &QueryRaw::polyTable;
                 ss << std::setprecision(12) << bg::wkt(way.polygon);
@@ -304,7 +194,7 @@ QueryRaw::applyChange(const OsmWay &way) const
                 fmt % way.id;
 
                 // tags
-                auto tags = buildTagsQuery(way.tags);
+                auto tags = utils->buildTagsQuery(way.tags);
                 fmt % tags;
 
                 // refs
@@ -459,11 +349,11 @@ QueryRaw::applyChange(const OsmRelation &relation) const
                 fmt % relation.id;
 
                 // tags
-                auto tags = buildTagsQuery(relation.tags);
+                auto tags = utils->buildTagsQuery(relation.tags);
                 fmt % tags;
 
                 // refs
-                auto refs = buildMembersQuery(relation.members);
+                auto refs = utils->buildMembersQuery(relation.members);
                 fmt % refs;
 
                 // geometry
@@ -546,21 +436,6 @@ QueryRaw::applyChange(const OsmRelation &relation) const
     return queries;
 }
 
-// Receives a string of comma separated values and
-// returns a vector. This function is useful for
-// getting a vector of references from a query result
-std::vector<long> arrayStrToVector(std::string refs_str) {
-    refs_str.erase(0, 1);
-    refs_str.erase(refs_str.size() - 1);
-    std::vector<long> refs;
-    std::stringstream ss(refs_str);
-    std::string token;
-    while (std::getline(ss, token, ',')) {
-        refs.push_back(std::stod(token));
-    }
-    return refs;
-}
-
 // Get all Relations that have at least 1 reference to any Way
 // of a list. This function receives a string of comma separated
 // ids ("213213,328947,287313") and returns a list of Relation
@@ -584,7 +459,7 @@ QueryRaw::getRelationsByWaysRefs(std::string &wayIds) const
         auto rel = std::make_shared<OsmRelation>();
         rel->id = (*rel_it)[0].as<long>();
         std::string refs_str = (*rel_it)[1].as<std::string>();
-        auto members = parseJSONArrayStr(refs_str);
+        auto members = utils->parseJSONArrayStr(refs_str);
 
         for (auto mit = members.begin(); mit != members.end(); ++mit) {
             auto memberType = osmobjects::osmtype_t::way;
@@ -599,7 +474,7 @@ QueryRaw::getRelationsByWaysRefs(std::string &wayIds) const
         rel->version = (*rel_it)[2].as<long>();
         auto tags = (*rel_it)[3];
         if (!tags.is_null()) {
-            auto tags = parseJSONObjectStr((*rel_it)[3].as<std::string>());
+            auto tags = utils->parseJSONObjectStr((*rel_it)[3].as<std::string>());
             for (auto const& [key, val] : tags)
             {
                 rel->addTag(key, val);
@@ -651,7 +526,7 @@ QueryRaw::getWaysByIds(std::string &waysIds, std::map<long, std::shared_ptr<osmo
             auto refs = (*way_it)[3];
             if (!refs.is_null()) {
                 std::string refs_str = refs.as<std::string>();
-                way->refs = arrayStrToVector(refs_str);
+                way->refs = utils->arrayStrToVector(refs_str);
             }
             waycache.insert(std::pair(way->id, std::make_shared<osmobjects::OsmWay>(*way)));
         }
@@ -659,7 +534,7 @@ QueryRaw::getWaysByIds(std::string &waysIds, std::map<long, std::shared_ptr<osmo
 }
 
 // Receives a list of Osm Changes and the priority area and completes the geometry of
-// all objects (Nodes, Ways and Realations), including all indirectly modified objects.
+// all objects (Nodes, Ways and Relations), including all indirectly modified objects.
 //
 // Incomplete geometries happens all the time on Ways and Relations because the data for
 // their geometries (coordinates) can be not present on the OsmChange file. For example
@@ -932,7 +807,7 @@ QueryRaw::getNodeCacheFromWays(std::shared_ptr<std::vector<OsmWay>> ways, std::m
     }
 }
 
-// Recieve a string of comma separated values of Nodes ids
+// Receive a string of comma separated values of Nodes ids
 // and return a vector of Ways
 std::list<std::shared_ptr<OsmWay>>
 QueryRaw::getWaysByNodesRefs(std::string &nodeIds) const
@@ -961,12 +836,12 @@ QueryRaw::getWaysByNodesRefs(std::string &nodeIds) const
             way->id = (*way_it)[0].as<long>();
             std::string refs_str = (*way_it)[1].as<std::string>();
             if (refs_str.size() > 1) {
-                way->refs = arrayStrToVector(refs_str);
+                way->refs = utils->arrayStrToVector(refs_str);
             }
             way->version = (*way_it)[2].as<long>();
             auto tags = (*way_it)[3];
             if (!tags.is_null()) {
-                auto tags = parseJSONObjectStr((*way_it)[3].as<std::string>());
+                auto tags = utils->parseJSONObjectStr((*way_it)[3].as<std::string>());
                 for (auto const& [key, val] : tags) {
                     way->addTag(key, val);
                 }
@@ -985,255 +860,6 @@ QueryRaw::getWaysByNodesRefs(std::string &nodeIds) const
     return ways;
 }
 
-// Get the count of objects for a table (nodes, ways_poly, ways_line, relations)
-int QueryRaw::getCount(const std::string &tableName) {
-    std::string query = "SELECT count(osm_id) FROM " + tableName + " WHERE geom IS NOT null";
-    auto result = dbconn->query(query);
-    return result[0][0].as<int>();
-}
-
-// Get a page of Nodes from the DB, using an id for sorting
-// and a page size. This is useful for batch processing of Nodes,
-// like the Bootstraping process.
-std::shared_ptr<std::vector<OsmNode>>
-QueryRaw::getNodesFromDB(long lastid, int pageSize) {
-    std::string nodesQuery = "SELECT osm_id, ST_AsText(geom, 4326)";
-
-    if (lastid > 0) {
-        nodesQuery += ", version, tags FROM nodes WHERE osm_id < " + std::to_string(lastid) + " ORDER BY osm_id DESC LIMIT " + std::to_string(pageSize) + ";";
-    } else {
-        nodesQuery += ", version, tags FROM nodes ORDER BY osm_id DESC LIMIT " + std::to_string(pageSize) + ";";
-    }
-    auto nodes = std::make_shared<std::vector<OsmNode>>();
-    auto nodes_result = dbconn->query(nodesQuery);
-    if (nodes_result.size() == 0) {
-        log_debug("No results returned!");
-        return nodes;
-    }
-
-    // Fill vector of OsmNode objects
-    for (auto node_it = nodes_result.begin(); node_it != nodes_result.end(); ++node_it) {
-
-        // Skip empty geometries
-        if ((*node_it)[1].is_null()) {
-            continue;
-        }
-
-        OsmNode node;
-        node.id = (*node_it)[0].as<long>();
-
-        point_t point;
-        std::string point_str = (*node_it)[1].as<std::string>();
-        bg::read_wkt(point_str, point);
-        node.setPoint(bg::get<0>(point), bg::get<1>(point));
-        node.version = (*node_it)[2].as<long>();
-        auto tags = (*node_it)[3];
-        if (!tags.is_null()) {
-            auto tags = parseJSONObjectStr((*node_it)[3].as<std::string>());
-            for (auto const& [key, val] : tags)
-            {
-                node.addTag(key, val);
-            }
-        }
-        nodes->push_back(node);
-    }
-
-    return nodes;
-}
-
-
-// Get a page of Ways from the DB, using an id for sorting
-// and a page size. This is useful for batch processing of Ways,
-// like the Bootstraping process.
-std::shared_ptr<std::vector<OsmWay>>
-QueryRaw::getWaysFromDB(long lastid, int pageSize, const std::string &tableName) {
-    std::string waysQuery;
-    if (tableName == QueryRaw::polyTable) {
-        waysQuery = "SELECT osm_id, refs, ST_AsText(ST_ExteriorRing(geom), 4326)";
-    } else {
-        waysQuery = "SELECT osm_id, refs, ST_AsText(geom, 4326)";
-    }
-    if (lastid > 0) {
-        waysQuery += ", version, tags FROM " + tableName + " WHERE osm_id < " + std::to_string(lastid) + " ORDER BY osm_id DESC LIMIT " + std::to_string(pageSize) + ";";
-    } else {
-        waysQuery += ", version, tags FROM " + tableName + " ORDER BY osm_id DESC LIMIT " + std::to_string(pageSize) + ";";
-    }
-
-    auto ways = std::make_shared<std::vector<OsmWay>>();
-    auto ways_result = dbconn->query(waysQuery);
-    if (ways_result.size() == 0) {
-        log_debug("No results returned!");
-        return ways;
-    }
-
-    // Fill vector of OsmWay objects
-    for (auto way_it = ways_result.begin(); way_it != ways_result.end(); ++way_it) {
-
-        // Skip empty geometries
-        if ((*way_it)[2].is_null()) {
-            continue;
-        }
-
-        OsmWay way;
-        way.id = (*way_it)[0].as<long>();
-        std::string refs_str = (*way_it)[1].as<std::string>();
-        if (refs_str.size() > 1) {
-
-            way.refs = arrayStrToVector(refs_str);
-
-            std::string poly = (*way_it)[2].as<std::string>();
-            bg::read_wkt(poly, way.linestring);
-
-            if (tableName == QueryRaw::polyTable) {
-                way.polygon = { {std::begin(way.linestring), std::end(way.linestring)} };
-            }
-            way.version = (*way_it)[3].as<long>();
-            auto tags = (*way_it)[4];
-            if (!tags.is_null()) {
-                auto tags = parseJSONObjectStr((*way_it)[4].as<std::string>());
-                for (auto const& [key, val] : tags)
-                {
-                    way.addTag(key, val);
-                }
-            }
-            ways->push_back(way);
-        }
-    }
-
-    return ways;
-}
-
-// Get a page of Ways from the DB, using an id for sorting
-// and a page size, but without using Refs. This is useful 
-// for batch processing of Ways that are not from OSM, like
-// third party geospatial databases.
-std::shared_ptr<std::vector<OsmWay>>
-QueryRaw::getWaysFromDBWithoutRefs(long lastid, int pageSize, const std::string &tableName) {
-    std::string waysQuery;
-    if (tableName == QueryRaw::polyTable) {
-        waysQuery = "SELECT osm_id, ST_AsText(ST_ExteriorRing(geom), 4326)";
-    } else {
-        waysQuery = "SELECT osm_id, ST_AsText(geom, 4326)";
-    }
-    if (lastid > 0) {
-        waysQuery += ", tags FROM " + tableName + " WHERE osm_id < " + std::to_string(lastid) + " ORDER BY osm_id DESC LIMIT " + std::to_string(pageSize) + ";";
-    } else {
-        waysQuery += ", tags FROM " + tableName + " ORDER BY osm_id DESC LIMIT " + std::to_string(pageSize) + ";";
-    }
-
-    auto ways = std::make_shared<std::vector<OsmWay>>();
-    auto ways_result = dbconn->query(waysQuery);
-    if (ways_result.size() == 0) {
-        log_debug("No results returned!");
-        return ways;
-    }
-
-    // Fill vector of OsmWay objects
-    for (auto way_it = ways_result.begin(); way_it != ways_result.end(); ++way_it) {
-
-        // Skip empty geometries
-        if ((*way_it)[1].is_null()) {
-            continue;
-        }
-
-        OsmWay way;
-        way.id = (*way_it)[0].as<long>();
-
-        std::string poly = (*way_it)[1].as<std::string>();
-        bg::read_wkt(poly, way.linestring);
-
-        if (tableName == QueryRaw::polyTable) {
-            way.polygon = { {std::begin(way.linestring), std::end(way.linestring)} };
-        }
-        auto tags = (*way_it)[2];
-        if (!tags.is_null()) {
-            auto tags = parseJSONObjectStr((*way_it)[2].as<std::string>());
-            for (auto const& [key, val] : tags)
-            {
-                way.addTag(key, val);
-            }
-        }
-        ways->push_back(way);
-
-    }
-
-    return ways;
-}
-
-
-// Get a page of Relations from the DB, using an id for sorting
-// and a page size. This is useful for batch processing of Relations,
-// like the Bootstraping process.
-std::shared_ptr<std::vector<OsmRelation>>
-QueryRaw::getRelationsFromDB(long lastid, int pageSize) {
-    std::string relationsQuery = "SELECT osm_id, refs, ST_AsText(geom, 4326)";
-    if (lastid > 0) {
-        relationsQuery += ", version, tags FROM relations WHERE osm_id < " + std::to_string(lastid) + " ORDER BY osm_id desc LIMIT " + std::to_string(pageSize) + ";";
-    } else {
-        relationsQuery += ", version, tags FROM relations ORDER BY osm_id DESC LIMIT " + std::to_string(pageSize) + ";";
-    }
-
-    auto relations = std::make_shared<std::vector<OsmRelation>>();
-    auto relations_result = dbconn->query(relationsQuery);
-    if (relations_result.size() == 0) {
-        log_debug("No results returned!");
-        return relations;
-    }
-    // Fill vector of OsmRelation objects
-    for (auto rel_it = relations_result.begin(); rel_it != relations_result.end(); ++rel_it) {
-
-        OsmRelation relation;
-        relation.id = (*rel_it)[0].as<long>();
-        auto refs = (*rel_it)[1];
-        if (!refs.is_null()) {
-
-            // Skip empty geometries
-            if ((*rel_it)[2].is_null()) {
-                continue;
-            }
-
-            auto refs = parseJSONArrayStr((*rel_it)[1].as<std::string>());
-            for (auto ref_it = refs.begin(); ref_it != refs.end(); ++ref_it) {
-                auto relType = osmobjects::osmtype_t::way;
-                if (ref_it->at("type") == "n") {
-                    relType = osmobjects::osmtype_t::node;
-                } else if (ref_it->at("type") == "r") {
-                    relType = osmobjects::osmtype_t::relation;
-                }
-                relation.addMember(
-                    std::stol(ref_it->at("ref")),
-                    relType,
-                    ref_it->at("role")
-                );
-            }
-            std::string geometry = (*rel_it)[2].as<std::string>();
-            if (geometry.substr(0, 7) == "POLYGON") {
-                bg::read_wkt(geometry, relation.multipolygon);
-            } else if (geometry.substr(0, 15) == "MULTILINESTRING") {
-                bg::read_wkt(geometry, relation.multilinestring);
-            }
-            relation.version = (*rel_it)[3].as<long>();
-        }
-        auto tags = (*rel_it)[4];
-        if (!tags.is_null()) {
-            auto tags = parseJSONObjectStr((*rel_it)[4].as<std::string>());
-            for (auto const& [key, val] : tags)
-            {
-                relation.addTag(key, val);
-            }
-        }
-        relations->push_back(relation);
-    }
-
-    return relations;
-}
-
-boost::posix_time::ptime cleanTimeStr(std::string timestampStr) {
-    std::string cleanedTimeStr = timestampStr.substr(0, 19); // keep only "YYYY-MM-DD HH:MM:SS"
-    std::replace(cleanedTimeStr.begin(), cleanedTimeStr.end(), ' ', 'T');
-    return from_iso_extended_string(cleanedTimeStr);;
-}
-
 // Returns latest timestamp from DB - 5 hours
 boost::posix_time::ptime
 QueryRaw::getLatestTimestamp() {
@@ -1246,7 +872,7 @@ QueryRaw::getLatestTimestamp() {
         UNION ALL \
         SELECT MAX(timestamp) FROM relations \
         ) AS combined;");
-    return cleanTimeStr(result[0][0].as<std::string>());
+    return utils->cleanTimeStr(result[0][0].as<std::string>());
 }
 
 } // namespace queryraw

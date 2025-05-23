@@ -30,6 +30,11 @@ class Bootstrap {
     Bootstrap(void);
     ~Bootstrap(void){};
 
+    ///
+    /// \brief start Starts bootstrapping process
+    /// \param config is the Underpass config
+    /// \return void
+    ///
     void start(const underpassconfig::UnderpassConfig &config);
     boost::posix_time::ptime getLatestTimestamp(void);
     void initializeDB(void);

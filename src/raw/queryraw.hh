@@ -35,12 +35,14 @@
 #include <iostream>
 #include <map>
 #include "data/pq.hh"
+#include "data/utils.hh"
 #include "osm/osmobjects.hh"
 #include "osm/osmchange.hh"
 
 using namespace pq;
 using namespace osmobjects;
 using namespace osmchange;
+using namespace datautils;
 
 /// \namespace queryraw
 namespace queryraw {
@@ -53,7 +55,6 @@ namespace queryraw {
 /// well as updating the data (geometries and tags) applying a replication file.
 class QueryRaw {
   public:
-    QueryRaw(void);
     ~QueryRaw(void){};
     QueryRaw(std::shared_ptr<Pq> db);
 
@@ -61,8 +62,15 @@ class QueryRaw {
     static const std::string polyTable;
     // Name of the table for storing linestrings
     static const std::string lineTable;
+
     // Name of the table for storing linestrings
     bool onConflict = true;
+
+    // Data utils
+    std::shared_ptr<DataUtils> utils;
+
+    // OSM DB connection
+    std::shared_ptr<Pq> dbconn;
 
     /// Build query for processed Node
     std::shared_ptr<std::vector<std::string>> applyChange(const OsmNode &node) const;
@@ -72,8 +80,10 @@ class QueryRaw {
     std::shared_ptr<std::vector<std::string>> applyChange(const OsmRelation &relation) const;
     // Update Relation geometry only
     std::shared_ptr<std::vector<std::string>> applyChange(const OsmRelation &relation, bool geomOnly) const;
+
     /// Build all geometries for a OsmChange file
     void buildGeometries(std::shared_ptr<OsmChangeFile> osmchanges, const multipolygon_t &poly);
+
     /// Get nodes for filling Node cache from refs on ways 
     void getNodeCacheFromWays(std::shared_ptr<std::vector<OsmWay>> ways, std::map<double, point_t> &nodecache) const;
     // Get ways by node refs (used for ways geometries)
@@ -82,20 +92,8 @@ class QueryRaw {
     void getWaysByIds(std::string &relsForWayCacheIds, std::map<long, std::shared_ptr<osmobjects::OsmWay>> &waycache);
     // Get relations by referenced ways (used for relations geometries)
     std::list<std::shared_ptr<OsmRelation>> getRelationsByWaysRefs(std::string &wayIds) const;
-    // OSM DB connection
-    std::shared_ptr<Pq> dbconn;
-    // Get object (nodes, ways or relations) count from the database
-    int getCount(const std::string &tableName);
-    // Build tags query for insert tags into the databse
-    std::string buildTagsQuery(std::map<std::string, std::string> tags) const;
+
     // Get ways by page
-    std::shared_ptr<std::vector<OsmWay>> getWaysFromDB(long lastid, int pageSize, const std::string &tableName);
-    // Get ways by page, without refs (useful for non OSM databases)
-    std::shared_ptr<std::vector<OsmWay>> getWaysFromDBWithoutRefs(long lastid, int pageSize, const std::string &tableName);
-    // Get nodes by page
-    std::shared_ptr<std::vector<OsmNode>> getNodesFromDB(long lastid, int pageSize);
-    // Get relations by page
-    std::shared_ptr<std::vector<OsmRelation>> getRelationsFromDB(long lastid, int pageSize);
     // Get latest timestamp from DB
     boost::posix_time::ptime getLatestTimestamp(void);
 

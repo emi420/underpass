@@ -31,12 +31,16 @@ It's also possible to debug Underpass on MacOS. You should use `glibtool` instea
 
 `brew install gdb`
 
-Note that gdb requires special privileges to access Mac ports.
+Note that gdb might requires special privileges to access Mac ports.
 You will need to codesign the binary. For instructions, see: https://sourceware.org/gdb/wiki/PermissionsDarwin
 
 Add the alias in your `~/.bashrc` file:
 
 `alias lg='glibtool --mode=execute gdb'`
+
+And debug:
+
+`lg --args ./underpass --bootstrap`
 
 ### With LLDB
 

@@ -66,11 +66,6 @@ namespace osmprocessor {
                 osmium::io::Reader* m_reader)
             : relations(m_relations), progress(m_progress), reader(m_reader) {}
 
-            // Callback for newly found relations (first pass)
-            bool new_relation(const osmium::Relation& relation) noexcept {
-                return relation.tags().has_tag("type", "multipolygon") || relation.tags().has_tag("type", "boundary");
-            }
-
             // Callback for completed relations (second pass)
             void complete_relation(const osmium::Relation& relation) {
 
@@ -158,26 +153,29 @@ namespace osmprocessor {
             }
 
             void way(const osmium::Way& way) {
-                OsmWay osmWay;
-                osmWay.id = way.id();
-                osmWay.version = way.version();
-                osmWay.timestamp = osmium_ts_to_ptime(way.timestamp());
-                for (const auto& n : way.nodes()) {
-                    osmWay.refs.push_back(n.ref());
-                }
-                if (osmWay.isClosed()) {
-                    auto way_geom = factory.create_polygon(way);
-                    boost::geometry::read_wkt(way_geom, osmWay.polygon);
-                } else {
-                    auto way_geom = factory.create_linestring(way);
-                    boost::geometry::read_wkt(way_geom, osmWay.linestring);
-                }
-                for (const osmium::Tag& t : way.tags()) {
-                    osmWay.addTag(t.key(), t.value());
-                }
-                osmWay.action = osmobjects::create;
+                try {
+                    OsmWay osmWay;
+                    osmWay.id = way.id();
+                    osmWay.version = way.version();
+                    osmWay.timestamp = osmium_ts_to_ptime(way.timestamp());
+                    for (const auto& n : way.nodes()) {
+                        osmWay.refs.push_back(n.ref());
+                    }
+                    if (osmWay.isClosed()) {
+                        auto way_geom = factory.create_polygon(way);
+                        boost::geometry::read_wkt(way_geom, osmWay.polygon);
+                    } else {
+                        auto way_geom = factory.create_linestring(way);
+                        boost::geometry::read_wkt(way_geom, osmWay.linestring);
+                    }
+                    for (const osmium::Tag& t : way.tags()) {
+                        osmWay.addTag(t.key(), t.value());
+                    }
+                    osmWay.action = osmobjects::create;
 
-                rawTasker->apply(osmWay);
+                    rawTasker->apply(osmWay);
+                } catch (const std::exception &) {
+                }
 
                 if (progress && reader) {
                     progress->update(reader->offset());

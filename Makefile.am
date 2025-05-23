@@ -1,5 +1,6 @@
 #
 # Copyright (c) 2020, 2021, 2022, 2023, 2024 Humanitarian OpenStreetMap Team
+# Copyright (c) 2025 Emilio Mariscal
 #
 # This file is part of Underpass.
 #
@@ -66,6 +67,7 @@ libunderpass_la_SOURCES = \
 	src/utils/geoutil.cc src/utils/geoutil.hh \
 	src/utils/yaml.hh src/utils/yaml.cc \
 	src/data/pq.hh src/data/pq.cc \
+	src/data/utils.hh src/data/utils.cc \
 	setup/db/setupdb.sh
 
 if JEMALLOC

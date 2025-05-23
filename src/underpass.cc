@@ -218,6 +218,7 @@ main(int argc, char *argv[])
         if (bootstrapThread.joinable()) {
             bootstrapThread.join();
         }
+
         // For running the replicator process
         timestamps.push_back("latest");
         config.latest = true;
