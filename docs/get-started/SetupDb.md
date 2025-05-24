@@ -14,7 +14,7 @@ sudo apt install postgis postgresql-14-postgis-3
 ```
 sudo -u postgres psql
 CREATE ROLE underpass WITH LOGIN PASSWORD 'YourPassword';
-ALTER ROLE underpass CREATEDB;
+ALTER ROLE underpass SUPERUSER;
 CREATE DATABASE underpass OWNER underpass;
 \c underpass
 CREATE EXTENSION postgis;
