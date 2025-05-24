@@ -2,6 +2,8 @@
 
 ## Linux
 
+Tested in Ubuntu 22.04.5 LTS
+
 ### Install dependencies
 
 ```sh
