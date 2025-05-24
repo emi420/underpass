@@ -22,5 +22,6 @@ CREATE EXTENSION postgis;
 
 Now you can pass the DB parameters to Underpass, for example:
 
-./underpass -s underpass:YourPassword@localhost/underpass
+./underpass -s underpass:YourPassword@localhost/underpass -i file.pbf -b file.geojson
+
 

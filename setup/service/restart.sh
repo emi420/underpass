@@ -1,2 +1,2 @@
 #!/bin/bash
-underpass --latest
+underpass -t latest
