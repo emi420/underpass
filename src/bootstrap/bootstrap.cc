@@ -34,14 +34,15 @@ namespace bootstrap {
 
     Bootstrap::Bootstrap(void) {}
 
-    void
+    bool
     Bootstrap::connect(const std::string &db_url) {
         db = std::make_shared<Pq>();
         if (!db->connect(db_url)) {
             log_error("Could not connect to Underpass DB, aborting bootstrapping thread!");
-            return;
+            return false;
         }
         queryraw = std::make_shared<QueryRaw>(db);
+        return true;
     }
 
     void
@@ -64,7 +65,10 @@ namespace bootstrap {
 
     void
     Bootstrap::start(const underpassconfig::UnderpassConfig &config) {
-        connect(config.underpass_db_url);
+        if (!connect(config.underpass_db_url)) {
+            std::cout << "Error trying to connect to the database" << std::endl;
+            exit(0);
+        }
         queryraw = std::make_shared<QueryRaw>(db);
         // queryraw->onConflict = false;
         std::string pbf = config.import;

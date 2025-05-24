@@ -44,7 +44,7 @@ class Bootstrap {
       std::shared_ptr<Pq> db;
       std::shared_ptr<QueryRaw> queryraw;
 
-      void connect(const std::string &db_url);
+      bool connect(const std::string &db_url);
       void processPBF(std::string &pbf, int page_size, int concurrency);
 
   };
