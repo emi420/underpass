@@ -112,7 +112,7 @@ PlanetIndexFile::getIndexDateFromHTML(std::istream &html)
                 result.insert(std::pair(index, dt));
             }
         } catch(std::exception const& e) {
-            log_error("Invalid string");
+            log_error("Invalid string %1%", line);
         }
     }
 
