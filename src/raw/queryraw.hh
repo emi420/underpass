@@ -63,9 +63,6 @@ class QueryRaw {
     // Name of the table for storing linestrings
     static const std::string lineTable;
 
-    // Name of the table for storing linestrings
-    bool onConflict = true;
-
     // Data utils
     std::shared_ptr<DataUtils> utils;
 

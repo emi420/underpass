@@ -75,12 +75,8 @@ QueryRaw::applyChange(const OsmNode &node) const
         std::string query = "INSERT INTO nodes AS r (osm_id, geom, tags, timestamp, version, \"user\", uid, changeset) VALUES(";
         std::string format = "%d, ST_GeomFromText(\'%s\', 4326), %s, \'%s\', %d, \'%s\', %d, %d)";
 
-        if (onConflict) {
-            format.append(" ON CONFLICT (osm_id) DO UPDATE SET  geom = ST_GeomFromText(\'%s\', \
-            4326), tags = %s, timestamp = \'%s\', version = %d, \"user\" = \'%s\', uid = %d, changeset = %d WHERE r.version < %d;");
-        } else {
-            format.append(";");
-        }
+        format.append(" ON CONFLICT (osm_id) DO UPDATE SET geom = ST_GeomFromText(\'%s\', \
+        4326), tags = %s, timestamp = \'%s\', version = %d, \"user\" = \'%s\', uid = %d, changeset = %d WHERE r.version < %d;");
 
         boost::format fmt(format);
 
@@ -117,16 +113,14 @@ QueryRaw::applyChange(const OsmNode &node) const
         fmt % node.changeset;
 
         // ON CONFLICT (update)
-        if (onConflict) {
-            fmt % geometry;
-            fmt % tags;
-            fmt % timestamp;
-            fmt % node.version;
-            fmt % dbconn->escapedString(node.user);
-            fmt % node.uid;
-            fmt % node.changeset;
-            fmt % node.version;
-        }
+        fmt % geometry;
+        fmt % tags;
+        fmt % timestamp;
+        fmt % node.version;
+        fmt % dbconn->escapedString(node.user);
+        fmt % node.uid;
+        fmt % node.changeset;
+        fmt % node.version;
 
         query.append(fmt.str());
         queries->push_back(query);
@@ -182,11 +176,7 @@ QueryRaw::applyChange(const OsmWay &way) const
                 query = "INSERT INTO " + *tableName + " AS r (osm_id, tags, refs, geom, timestamp, version, \"user\", uid, changeset) VALUES(";
                 std::string format = "%d, %s, %s, %s, \'%s\', %d, \'%s\', %d, %d)";
 
-                if (onConflict) {
-                    format.append(" ON CONFLICT (osm_id) DO UPDATE SET tags = %s, refs = %s, geom = %s, timestamp = \'%s\', version = %d, \"user\" = \'%s\', uid = %d, changeset = %d WHERE r.version <= %d;");
-                } else {
-                    format.append(";");
-                }
+                format.append(" ON CONFLICT (osm_id) DO UPDATE SET tags = %s, refs = %s, geom = %s, timestamp = \'%s\', version = %d, \"user\" = \'%s\', uid = %d, changeset = %d WHERE r.version <= %d;");
 
                 boost::format fmt(format);
 
@@ -230,17 +220,15 @@ QueryRaw::applyChange(const OsmWay &way) const
                 fmt % way.changeset;
 
                 // ON CONFLICT (update)
-                if (onConflict) {
-                    fmt % tags;
-                    fmt % refs;
-                    fmt % geometry;
-                    fmt % timestamp;
-                    fmt % way.version;
-                    fmt % dbconn->escapedString(way.user);
-                    fmt % way.uid;
-                    fmt % way.changeset;
-                    fmt % way.version;
-                }
+                fmt % tags;
+                fmt % refs;
+                fmt % geometry;
+                fmt % timestamp;
+                fmt % way.version;
+                fmt % dbconn->escapedString(way.user);
+                fmt % way.uid;
+                fmt % way.changeset;
+                fmt % way.version;
 
                 query += fmt.str();
                 queries->push_back(query);
@@ -335,11 +323,7 @@ QueryRaw::applyChange(const OsmRelation &relation) const
                 query = "INSERT INTO relations as r (osm_id, tags, refs, geom, timestamp, version, \"user\", uid, changeset) VALUES(";
                 std::string format = "%d, %s, %s, %s, \'%s\', %d, \'%s\', %d, %d)";
 
-                if (onConflict) {
-                    format.append(" ON CONFLICT (osm_id) DO UPDATE SET tags = %s, refs = %s, geom = %s, timestamp = \'%s\', version = %d, \"user\" = \'%s\', uid = %d, changeset = %d WHERE r.version <= %d;");
-                } else {
-                    format.append(";");
-                }
+                format.append(" ON CONFLICT (osm_id) DO UPDATE SET tags = %s, refs = %s, geom = %s, timestamp = \'%s\', version = %d, \"user\" = \'%s\', uid = %d, changeset = %d WHERE r.version <= %d;");
             
                 boost::format fmt(format);
 
@@ -379,17 +363,15 @@ QueryRaw::applyChange(const OsmRelation &relation) const
                 fmt % relation.changeset;
 
                 // ON CONFLICT
-                if (onConflict) {
-                    fmt % tags;
-                    fmt % refs;
-                    fmt % geometry;
-                    fmt % timestamp;
-                    fmt % relation.version;
-                    fmt % dbconn->escapedString(relation.user);
-                    fmt % relation.uid;
-                    fmt % relation.changeset;
-                    fmt % relation.version;
-                }
+                fmt % tags;
+                fmt % refs;
+                fmt % geometry;
+                fmt % timestamp;
+                fmt % relation.version;
+                fmt % dbconn->escapedString(relation.user);
+                fmt % relation.uid;
+                fmt % relation.changeset;
+                fmt % relation.version;
 
                 query.append(fmt.str());
                 queries->push_back(query);

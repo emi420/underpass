@@ -70,7 +70,6 @@ namespace bootstrap {
             exit(0);
         }
         queryraw = std::make_shared<QueryRaw>(db);
-        // queryraw->onConflict = false;
         std::string pbf = config.import;
         if (!config.latest && !pbf.empty()) {
             processPBF(pbf, config.bootstrap_page_size, config.concurrency);
