@@ -560,8 +560,6 @@ void QueryRaw::buildGeometries(std::shared_ptr<OsmChangeFile> osmchanges, const 
                         referencedNodeIds += std::to_string(*rit) + ",";
                     }
                 }
-                // Save Ways in waycache
-                osmchanges->waycache.insert(std::make_pair(way->id, std::make_shared<osmobjects::OsmWay>(*way)));
             } else {
                 // Save removed Ways for later use. This list will be used to known
                 // which Ways will be skipped when building geometries
@@ -574,6 +572,7 @@ void QueryRaw::buildGeometries(std::shared_ptr<OsmChangeFile> osmchanges, const 
         for (auto nit = std::begin(change->nodes); nit != std::end(change->nodes); ++nit) {
             OsmNode *node = nit->get();
             if (node->action == osmobjects::modify) {
+
                 // Get only modified nodes ids inside the priority area
                 if (poly.empty() || bg::within(node->point, poly)) {
                     modifiedNodesIds += std::to_string(node->id) + ",";
@@ -601,6 +600,7 @@ void QueryRaw::buildGeometries(std::shared_ptr<OsmChangeFile> osmchanges, const 
         auto change = std::make_shared<OsmChange>(none);
         for (auto wit = modifiedWays.begin(); wit != modifiedWays.end(); ++wit) {
            auto way = std::make_shared<OsmWay>(*wit->get());
+
            // If the Way IS NOT removed
            if (std::find(removedWays.begin(), removedWays.end(), way->id) == removedWays.end()) {
 
@@ -799,8 +799,8 @@ QueryRaw::getWaysByNodesRefs(std::string &nodeIds) const
     std::vector<std::string> queries;
 
     // Get all Ways that have references to Nodes from the DB, including Polygons and LineString geometries
-    queries.push_back("SELECT distinct(osm_id), refs, version, tags, uid, changeset FROM ways_poly WHERE refs @> '{" + nodeIds + "}';");
-    queries.push_back("SELECT distinct(osm_id), refs, version, tags, uid, changeset FROM ways_line WHERE refs @> '{" + nodeIds + "}';");
+    queries.push_back("SELECT distinct(osm_id), refs, version, tags, uid, changeset FROM ways_poly WHERE refs && '{" + nodeIds + "}';");
+    queries.push_back("SELECT distinct(osm_id), refs, version, tags, uid, changeset FROM ways_line WHERE refs && '{" + nodeIds + "}';");
 
     for (auto it = queries.begin(); it != queries.end(); ++it) {
 
@@ -814,6 +814,7 @@ QueryRaw::getWaysByNodesRefs(std::string &nodeIds) const
         for (auto way_it = ways_result.begin(); way_it != ways_result.end(); ++way_it) {
             auto way = std::make_shared<OsmWay>();
             way->id = (*way_it)[0].as<long>();
+
             std::string refs_str = (*way_it)[1].as<std::string>();
             if (refs_str.size() > 1) {
                 way->refs = utils->arrayStrToVector(refs_str);
