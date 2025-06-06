@@ -148,16 +148,16 @@ QueryRaw::applyChange(const OsmWay &way) const
     if ((bg::num_points(way.linestring) >= 2 || bg::num_points(way.polygon) >= 2)
         && (way.action == osmobjects::create || way.action == osmobjects::modify
         || way.action == osmobjects::modify_geom)) {
+
         if ((way.refs.front() != way.refs.back() && way.refs.size() == bg::num_points(way.linestring)) ||
             (way.refs.front() == way.refs.back() && way.refs.size() == bg::num_points(way.polygon))
          ) {
 
             std::string query;
             const std::string* tableName;
-
-            // Get a Polygon or LineString geometry string depending on the Way
             std::stringstream ss;
 
+            // Get a Polygon or LineString geometry string depending on the Way's geometry
             if (way.isClosed()) {
                 tableName = &QueryRaw::polyTable;
                 ss << std::setprecision(12) << bg::wkt(way.polygon);
@@ -283,6 +283,7 @@ QueryRaw::applyChange(const OsmWay &way) const
             queries->push_back(delquery_fmt.str());
         }
     } else if (way.action == osmobjects::remove) {
+
         // Delete a Way geometry
         log_debug("Delete Way %1%", way.id);
         queries->push_back("DELETE FROM " + QueryRaw::polyTable + " WHERE osm_id = " + std::to_string(way.id) + ";");
@@ -545,6 +546,7 @@ void QueryRaw::buildGeometries(std::shared_ptr<OsmChangeFile> osmchanges, const 
         OsmChange *change = it->get();
         for (auto wit = std::begin(change->ways); wit != std::end(change->ways); ++wit) {
             OsmWay *way = wit->get();
+
             if (way->action != osmobjects::remove) {
 
                 if (way->action == osmobjects::modify) {
@@ -558,10 +560,8 @@ void QueryRaw::buildGeometries(std::shared_ptr<OsmChangeFile> osmchanges, const 
                         referencedNodeIds += std::to_string(*rit) + ",";
                     }
                 }
-                // Save Ways in waycache, pre-filter by priority area
-                if (poly.empty() || bg::within(way->linestring, poly)) {
-                    osmchanges->waycache.insert(std::make_pair(way->id, std::make_shared<osmobjects::OsmWay>(*way)));
-                }
+                // Save Ways in waycache
+                osmchanges->waycache.insert(std::make_pair(way->id, std::make_shared<osmobjects::OsmWay>(*way)));
             } else {
                 // Save removed Ways for later use. This list will be used to known
                 // which Ways will be skipped when building geometries
@@ -660,17 +660,15 @@ void QueryRaw::buildGeometries(std::shared_ptr<OsmChangeFile> osmchanges, const 
         // Get Nodes geometries from DB
         std::string nodesQuery = "SELECT osm_id, st_x(geom) AS lat, st_y(geom) AS lon FROM nodes WHERE osm_id IN (" + referencedNodeIds + ");";
         auto result = dbconn->query(nodesQuery);
-        if (result.size() == 0) {
-            log_debug("No results returned!");
-            return;
-        }
-        // Fill nodecache
-        for (auto node_it = result.begin(); node_it != result.end(); ++node_it) {
-            auto node_id = (*node_it)[0].as<long>();
-            auto node_lat = (*node_it)[2].as<double>();
-            auto node_lon = (*node_it)[1].as<double>();
-            OsmNode node(node_lat, node_lon);
-            osmchanges->nodecache[node_id] = node.point;
+        if (result.size() > 0) {
+            // Fill nodecache
+            for (auto node_it = result.begin(); node_it != result.end(); ++node_it) {
+                auto node_id = (*node_it)[0].as<long>();
+                auto node_lat = (*node_it)[2].as<double>();
+                auto node_lon = (*node_it)[1].as<double>();
+                OsmNode node(node_lat, node_lon);
+                osmchanges->nodecache[node_id] = node.point;
+            }
         }
     }
 
