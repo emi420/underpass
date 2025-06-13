@@ -17,7 +17,7 @@ It is designed to be **high performance** on modest hardware.
 |✅| Support Nodes, Ways and Relations |
 |✅| Import OSM PBF files |
 |✅| Fix and improve planet path calculation |
-|⚙️| Refactor geometry builder |
+|⚙️| **Refactor geometry builder** |
 | | Migrate to CMake |
 | | Debian dist |
 | | MacOS dist |
