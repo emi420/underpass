@@ -5,6 +5,24 @@ It is designed to be **high performance** on modest hardware.
 
 <img width="907" alt="Screenshot 2025-05-02 at 12 07 17 PM" src="https://github.com/user-attachments/assets/0bb7bc16-3b4a-413b-94b1-6e3e138a5ea5" />
 
+## Product roadmap
+
+✅ Done
+⚙️ In progress
+
+<!-- prettier-ignore-start -->
+| Status | Feature |
+|:--:| :-- |
+|✅| Process OSM Planet replication files in near-real time |
+|✅| Support Nodes, Ways and Relations |
+|✅| Import OSM PBF files |
+|✅| Fix and improve planet path calculation |
+|⚙️| Refactor geometry builder |
+| | Migrate to CMake |
+| | Debian dist |
+| | MacOS dist |
+| | Python plugins support |
+
 ## Getting started
 
 ### Install dependencies
