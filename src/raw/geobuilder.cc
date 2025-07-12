@@ -227,6 +227,14 @@ GeoBuilder::addIndirectlyModifiedRelations(std::shared_ptr<OsmChangeFile> &osmch
 
 void
 GeoBuilder::fillNodeCache(std::shared_ptr<OsmChangeFile> &osmchanges) {
+
+    // Fill node cache with nodes in osmchanges
+    for (const auto& change : osmchanges->changes) {
+        for (const auto& node : change->nodes) {
+            nodecache.insert(std::make_pair(node->id, node));
+        }
+    }
+
     // Fill nodecache with referenced Nodes. This will be used later when building the
     // geometries of Ways
     if (referencedNodeIds.size() > 1) {
@@ -234,8 +242,8 @@ GeoBuilder::fillNodeCache(std::shared_ptr<OsmChangeFile> &osmchanges) {
         // Get Nodes geometries
         auto result = queryraw->getNodesByIds(referencedNodeIds);
         // Fill nodecache
-        for (const auto& n : result) {
-            nodecache.insert(std::make_pair(n->id, n));
+        for (const auto& node : result) {
+            nodecache.insert(std::make_pair(node->id, node));
          }
     }
 }
@@ -305,10 +313,11 @@ GeoBuilder::buildRelations(std::shared_ptr<OsmChangeFile> &osmchanges) {
             }
         }
     }
+
     // Get the geometries of the referenced Ways from the DB.
     if (relsForWayCacheIds != "") {
         relsForWayCacheIds.erase(relsForWayCacheIds.size() - 1);
-        auto ways = queryraw->getWaysByIds(modifiedWaysIds);
+        auto ways = queryraw->getWaysByIds(relsForWayCacheIds);
         for (const auto& w : ways) {
             waycache.insert(std::make_pair(w->id, w));
         }

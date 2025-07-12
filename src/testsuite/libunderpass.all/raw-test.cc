@@ -32,6 +32,7 @@
 using namespace replication;
 using namespace logger;
 using namespace queryraw;
+namespace bg = boost::geometry;
 
 TestState runtest;
 class TestOsmChange : public osmchange::OsmChangeFile {};
@@ -78,6 +79,7 @@ class TestPlanet : public Planet {
     std::string source_tree_root;
 };
 
+
 bool processFile(const std::string &filename, std::shared_ptr<Pq> &db) {
     auto queryraw = std::make_shared<QueryRaw>(db);
     auto osmchanges = std::make_shared<osmchange::OsmChangeFile>();
@@ -97,26 +99,22 @@ bool processFile(const std::string &filename, std::shared_ptr<Pq> &db) {
         for (const auto& node : change->nodes) {
             auto queries = queryraw->applyChange(*node);
             for (const auto& query : *queries) {
-                // std::cout << "query :" << query << std::endl;
                 rawquery.push_back(query);
             }
         }
         for (const auto& way : change->ways) {
             auto queries = queryraw->applyChange(*way);
             for (const auto& query : *queries) {
-                // std::cout << "query :" << query << std::endl;
                 rawquery.push_back(query);
             }
         }
         for (const auto& relation : change->relations) {
             auto queries = queryraw->applyChange(*relation);
             for (const auto& query : *queries) {
-                // std::cout << "query :" << query << std::endl;
                 rawquery.push_back(query);
             }
         }
     }
-    
 
     for (const auto& query : rawquery) {
         db->query(query);
@@ -146,7 +144,6 @@ std::string
 getWKT(const polygon_t &polygon) {
     std::stringstream ss;
     ss << std::setprecision(12) << boost::geometry::wkt(polygon);
-    // std::cout << ss.str() << std::endl;
     return ss.str();
 }
 
@@ -154,7 +151,6 @@ std::string
 getWKTFromDB(const std::string &table, const long id, std::shared_ptr<Pq> &db) {
     auto result = db->query("SELECT ST_AsText(geom, 4326), refs from " + table + " where osm_id=" + std::to_string(id));
     for (auto r_it = result.begin(); r_it != result.end(); ++r_it) {
-        // std::cout << (*r_it)[0].as<std::string>() << std::endl;
         return (*r_it)[0].as<std::string>();
     }
 }
@@ -185,7 +181,6 @@ main(int argc, char *argv[])
         std::string waysIds = "101874,101875";
         auto ways = queryraw->getWaysByIds(waysIds);
         for (const auto& w : ways) {
-            std::cout << "Way >>>>> " << w->id << std::endl;
             waycache.insert(std::make_pair(w->id, w));
         }
 
@@ -194,7 +189,7 @@ main(int argc, char *argv[])
             runtest.pass("4 created Nodes, 1 created Ways (same changeset)");
         } else {
             runtest.fail("4 created Nodes, 1 created Ways (same changeset)");
-            return 1;
+            // return 1;
         }
 
         // 1 created Way, 4 existing Nodes (different changeset)
