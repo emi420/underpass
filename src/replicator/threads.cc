@@ -437,6 +437,7 @@ threadOsmChange(OsmChangeTask osmChangeTask)
     // Build features geometries
     GeoBuilder geobuilder(poly, queryraw);
     geobuilder.buildGeometries(osmchanges);
+    osmchanges->areaFilter(poly);
 
     // Raw data
     for (auto it = std::begin(osmchanges->changes); it != std::end(osmchanges->changes); ++it) {

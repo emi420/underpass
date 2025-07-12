@@ -25,14 +25,12 @@
 #include "raw/queryraw.hh"
 #include <string.h>
 #include "replicator/replication.hh"
-#include <boost/geometry.hpp>
 #include "raw/queryraw.hh"
 #include "raw/geobuilder.hh"
 
 using namespace replication;
 using namespace logger;
 using namespace queryraw;
-namespace bg = boost::geometry;
 
 TestState runtest;
 class TestOsmChange : public osmchange::OsmChangeFile {};
@@ -91,7 +89,7 @@ bool processFile(const std::string &filename, std::shared_ptr<Pq> &db) {
     geobuilder::GeoBuilder geobuilder(poly, queryraw);
     geobuilder.buildGeometries(osmchanges);
 
-    // osmchanges->areaFilter(poly);
+    osmchanges->areaFilter(poly);
     auto rawquery = std::vector<std::string>();
 
     // Raw data
@@ -189,7 +187,7 @@ main(int argc, char *argv[])
             runtest.pass("4 created Nodes, 1 created Ways (same changeset)");
         } else {
             runtest.fail("4 created Nodes, 1 created Ways (same changeset)");
-            // return 1;
+            return 1;
         }
 
         // 1 created Way, 4 existing Nodes (different changeset)

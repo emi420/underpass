@@ -154,6 +154,8 @@ QueryRaw::applyChange(const OsmWay &way) const
             (way.refs.front() == way.refs.back() && way.refs.size() == bg::num_points(way.polygon))
          ) {
 
+            std::cout << "*** WAY " << way.id << " ***" << std::endl;
+
             std::string query;
             const std::string* tableName;
             std::stringstream ss;
@@ -316,6 +318,8 @@ QueryRaw::applyChange(const OsmRelation &relation) const
         // Ignore empty geometries
         if (geostring != "MULTILINESTRING()" && geostring != "POLYGON()"
             && geostring != "MULTILINESTRING(())" && geostring != "POLYGON(())") {
+
+            std::cout << "*** RELATION " << relation.id << " ***" << std::endl;
 
             // Insert or update the full Relation, including id, tags, refs, geometry, timestamp,
             // version, user, uid and changeset
