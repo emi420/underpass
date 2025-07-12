@@ -273,7 +273,7 @@ main(int argc, char *argv[])
         "MULTIPOLYGON(((114.43 22.98, 114.43 22.99, 114.44 22.99, 114.44 22.98, 114.43 22.98)))",
         single_node_poly);
     testco.changes.clear();
-    testco.nodecache.clear();
+    // testco.nodecache.clear();
     testco.readChanges(test_data_dir + "/123.osc");
     testco.areaFilter(single_node_poly);
 
@@ -292,7 +292,7 @@ main(int argc, char *argv[])
 
     // Test relations
     testco.changes.clear();
-    testco.nodecache.clear();
+    // testco.nodecache.clear();
 
     const auto xml{R"xml(<?xml version='1.0' encoding='UTF-8'?>
       <osmChange version="0.6" generator="Osmosis 0.47.4">

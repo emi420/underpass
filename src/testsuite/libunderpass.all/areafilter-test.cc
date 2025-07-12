@@ -23,35 +23,51 @@
 #include "osm/osmchange.hh"
 #include <boost/geometry.hpp>
 #include "utils/geoutil.hh"
+#include "raw/queryraw.hh"
+#include "raw/geobuilder.hh"
 
 TestState runtest;
 
 using namespace logger;
 
 class TestChangeset : public changesets::ChangeSetFile {};
-class TestOsmChange : public osmchange::OsmChangeFile {};
+
+void
+fillNodeCache(std::shared_ptr<osmchange::OsmChangeFile> &osmchange, geobuilder::GeoBuilder &geobuilder) {
+    for (const auto& change : osmchange->changes) {
+        for (const auto& node : change->nodes) {
+            geobuilder.nodecache.insert(std::make_pair(node->id, node));
+        }
+    }
+}
+
+void
+buildGeometries(std::shared_ptr<osmchange::OsmChangeFile> &osmchange, multipolygon_t &_poly) {
+    auto db = std::make_shared<Pq>();
+    std::shared_ptr<queryraw::QueryRaw> queryraw = std::make_shared<queryraw::QueryRaw>(db);
+    geobuilder::GeoBuilder geobuilder(_poly, queryraw);
+    fillNodeCache(osmchange, geobuilder);
+    geobuilder.buildWays(osmchange);
+    geobuilder.buildRelations(osmchange);
+}
 
 int
-countFeatures(TestOsmChange &osmchange) {
+countFeatures(std::shared_ptr<osmchange::OsmChangeFile> &osmchange) {
     int nodeCount = 0;
     int wayCount = 0;
     int relCount = 0;
-    for (auto cit = std::begin(osmchange.changes); cit != std::end(osmchange.changes); ++cit) {
-        osmchange::OsmChange *testOsmChange = cit->get();
-        for (auto nit = std::begin(testOsmChange->nodes); nit != std::end(testOsmChange->nodes); ++nit) {
-            osmobjects::OsmNode *node = nit->get();
+    for (const auto& change : osmchange->changes) {
+        for (const auto& node : change->nodes) {
             if (node->priority) {
                 nodeCount++;
             }
         }
-        for (auto wit = std::begin(testOsmChange->ways); wit != std::end(testOsmChange->ways); ++wit) {
-            osmobjects::OsmWay *way = wit->get();
+        for (const auto& way : change->ways) {
             if (way->priority) {
                 wayCount++;
             }
         }
-        for (auto rit = std::begin(testOsmChange->relations); rit != std::end(testOsmChange->relations); ++rit) {
-            osmobjects::OsmRelation *relation = rit->get();
+        for (const auto& relation : change->relations) {
             if (relation->priority) {
                 relCount++;
             }
@@ -66,19 +82,21 @@ countFeatures(TestChangeset &changeset) {
 }
 
 bool
-getPriority(TestOsmChange &osmchange, bool debug = false) {
+getPriority(std::shared_ptr<osmchange::OsmChangeFile> &osmchange, bool debug = false) {
     bool result = true;
-    for (auto cit = std::begin(osmchange.changes); cit != std::end(osmchange.changes); ++cit) {
-        osmchange::OsmChange *testOsmChange = cit->get();
-        for (auto nit = std::begin(testOsmChange->nodes); nit != std::end(testOsmChange->nodes); ++nit) {
-            osmobjects::OsmNode *node = nit->get();
+    for (const auto& change : osmchange->changes) {
+        for (const auto& node : change->nodes) {
             if (!node->priority) {
                 result = false;
             }
         }
-        for (auto wit = std::begin(testOsmChange->ways); wit != std::end(testOsmChange->ways); ++wit) {
-            osmobjects::OsmWay *way = wit->get();
+        for (const auto& way : change->ways) {
             if (!way->priority) {
+                result = false;
+            }
+        }
+        for (const auto& relation : change->relations) {
+            if (!relation->priority) {
                 result = false;
             }
         }
@@ -107,11 +125,12 @@ main(int argc, char *argv[])
     std::string osmchangeFile(DATADIR);
     osmchangeFile += "/testsuite/testdata/areafilter-test.osm";
     TestChangeset changeset;
-    TestOsmChange osmchange;
+    auto osmchange = std::make_shared<osmchange::OsmChangeFile>();
     changesets::ChangeSet *testChangeset;
 
     // ChangeSet - Whole world
     changeset.readChanges(changesetFile);
+    
     changeset.areaFilter(polyWholeWorld);
     testChangeset = changeset.changes.front().get();
     if (testChangeset && testChangeset->priority) {
@@ -159,10 +178,12 @@ main(int argc, char *argv[])
     // -- OsmChanges
 
     // // OsmChange - Empty poly
-    osmchange.readChanges(osmchangeFile);
-    osmchange.buildGeometriesFromNodeCache();
+    osmchange->readChanges(osmchangeFile);
 
-    osmchange.areaFilter(polyEmpty);
+    // Build geometries
+    buildGeometries(osmchange, polyEmpty);
+ 
+    osmchange->areaFilter(polyEmpty);
     if (getPriority(osmchange) && countFeatures(osmchange) == 54) {
         runtest.pass("OsmChange areaFilter - 54 (empty poly)");
     } else {
@@ -171,17 +192,18 @@ main(int argc, char *argv[])
     }
 
     // OsmChange - Whole world
-    osmchange.areaFilter(polyWholeWorld);
+    osmchange->areaFilter(polyWholeWorld);
     if (getPriority(osmchange) && countFeatures(osmchange) == 54) {
         runtest.pass("OsmChange areaFilter - 54 (whole world)");
     } else {
+        std::cout << "Count: " << countFeatures(osmchange) << std::endl;
         runtest.fail("OsmChange areaFilter - 54 (Whole world)");
         return 1;
     }
 
     // OsmChange - Small area in North Africa
     // Outside priority area, count should be 0
-    osmchange.areaFilter(polySmallArea);
+    osmchange->areaFilter(polySmallArea);
     if (countFeatures(osmchange) == 0) {
         runtest.pass("OsmChange areaFilter - 0 (Small area)");
     } else {
@@ -191,7 +213,7 @@ main(int argc, char *argv[])
 
     // OsmChange - Small area in Bangladesh
     // 28 nodes / 5 ways / 1 relation inside priority area, count should be 34
-    osmchange.areaFilter(polyHalf);
+    osmchange->areaFilter(polyHalf);
     if (countFeatures(osmchange) == 34) {
         runtest.pass("OsmChange areaFilter - 34 (small area)");
     } else {
@@ -201,7 +223,7 @@ main(int argc, char *argv[])
 
     // OsmChange - Smaller area in Bangladesh
     // 12 nodes / 3 ways / 1 relation inside priority area, count should be 16
-    osmchange.areaFilter(polyHalfSmall);
+    osmchange->areaFilter(polyHalfSmall);
     if (countFeatures(osmchange) == 16) {
         runtest.pass("OsmChange areaFilter - 16 (smaller area)");
     } else {
@@ -215,3 +237,4 @@ main(int argc, char *argv[])
 // mode: C++
 // indent-tabs-mode: nil
 // End:
+

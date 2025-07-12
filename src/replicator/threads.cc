@@ -78,6 +78,7 @@ using tcp = net::ip::tcp;         // from <boost/asio/ip/tcp.hpp>
 #include "osm/osmchange.hh"
 #include "replicator/replication.hh"
 #include "raw/queryraw.hh"
+#include "raw/geobuilder.hh"
 #include <jemalloc/jemalloc.h>
 #include "data/pq.hh"
 #include "underpassconfig.hh"
@@ -87,6 +88,7 @@ std::mutex stream_mutex;
 
 using namespace logger;
 using namespace queryraw;
+using namespace geobuilder;
 using namespace underpassconfig;
 
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
@@ -414,8 +416,6 @@ threadOsmChange(OsmChangeTask osmChangeTask)
             }
 
             try {
-                osmchanges->nodecache.clear();
-                osmchanges->waycache.clear();
                 osmchanges->readXML(changes_xml);
                 if (osmchanges->changes.size() > 0) {
                     task.timestamp = osmchanges->changes.back()->final_entry;
@@ -434,15 +434,9 @@ threadOsmChange(OsmChangeTask osmChangeTask)
         }
     }
 
-    // - Fill node cache with nodes referenced in modified
-    //   or created ways and also ways indirectly modified by modified nodes
-    // - Add indirectly modified ways to osmchanges
-    // - Build ways polygon/linestring geometries using nodecache
-    // - Build relation multipolyon/multilinestring geometries using waycache
-    queryraw->buildGeometries(osmchanges, poly);
-
-    // Filter data by priority polygon
-    osmchanges->areaFilter(poly);
+    // Build features geometries
+    GeoBuilder geobuilder(poly, queryraw);
+    geobuilder.buildGeometries(osmchanges);
 
     // Raw data
     for (auto it = std::begin(osmchanges->changes); it != std::end(osmchanges->changes); ++it) {

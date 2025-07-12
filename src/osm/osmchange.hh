@@ -225,9 +225,6 @@ class OsmChangeFile
     /// Delete any data not in the boundary polygon
     void areaFilter(const multipolygon_t &poly);
 
-    void buildGeometriesFromNodeCache();
-    void buildRelationGeometry(osmobjects::OsmRelation &relation);
-
 #ifdef LIBXML
     /// Called by libxml++ for each element of the XML file
     void on_start_element(const Glib::ustring &name,
@@ -238,10 +235,6 @@ class OsmChangeFile
     bool readXML(std::istream &xml);
 
     std::list<std::shared_ptr<OsmChange>> changes;      ///< All the changes in this file
-
-    std::map<double, point_t> nodecache;                ///< Cache nodes across multiple changesets
-
-    std::map<long, std::shared_ptr<osmobjects::OsmWay>> waycache; ///< Cache ways across multiple changesets
 
     /// dump internal data, for debugging only
     void dump(void);

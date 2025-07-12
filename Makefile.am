@@ -54,6 +54,7 @@ libunderpass_la_SOURCES = \
 	src/dsodefs.hh src/gettext.h \
 	src/underpassconfig.hh \
 	src/raw/queryraw.cc src/raw/queryraw.hh \
+	src/raw/geobuilder.cc src/raw/geobuilder.hh \
 	src/osm/changeset.cc src/osm/changeset.hh \
 	src/osm/osmchange.cc src/osm/osmchange.hh \
 	src/osm/osmobjects.cc src/osm/osmobjects.hh \

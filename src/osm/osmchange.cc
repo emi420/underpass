@@ -124,299 +124,6 @@ OsmChangeFile::readChanges(const std::string &file)
     return true;
 }
 
-// Used for testing
-void
-OsmChangeFile::buildGeometriesFromNodeCache() {
-    for (auto it = std::begin(changes); it != std::end(changes); ++it) {
-        osmchange::OsmChange *change = it->get();
-        for (auto wit = std::begin(change->ways); wit != std::end(change->ways); ++wit) {
-            osmobjects::OsmWay *way = wit->get();
-            for (auto lit = std::begin(way->refs); lit != std::end(way->refs); ++lit) {
-                bg::append(way->linestring, nodecache[*lit]);
-            }
-            if (way->isClosed()) {
-                way->polygon = { {std::begin(way->linestring), std::end(way->linestring)} };
-            }
-            std::stringstream ss;
-            if (way->isClosed()) {
-                ss << std::setprecision(12) << bg::wkt(way->polygon);
-            } else {
-                ss << std::setprecision(12) << bg::wkt(way->linestring);
-            }
-            waycache.insert(std::pair(way->id, std::make_shared<osmobjects::OsmWay>(*way)));
-        }
-    }
-}
-
-struct RelationGeometry {
-    linestring_t linestring;
-    polygon_t polygon;
-};
-
-void
-OsmChangeFile::buildRelationGeometry(osmobjects::OsmRelation &relation) {
-
-    std::vector<RelationGeometry> parts_inner;
-    std::vector<RelationGeometry> parts_outer;
-    linestring_t part;
-    linestring_t lastLinestring;
-    bool justClosed = false;
-    bool first = true;
-
-    std::vector<osmobjects::OsmRelationMember> members;
-
-    // Skip members that are not Way
-    for (auto mit = relation.members.begin(); mit != relation.members.end(); ++mit) {
-        if (mit->type == osmobjects::way) {
-            members.push_back(*mit);
-        }
-    }
-
-    for (auto mit = members.begin(); mit != members.end(); ++mit) {
-        // Process Way objects only, not Nodes or other Relations
-        if (!waycache.count(mit->ref)) {
-            // Way is not available in cache,
-            // possibily because Relation is not in the priority area
-            // or the way was deleted
-            return;
-        }
-
-        auto way = std::make_shared<osmobjects::OsmWay>();
-
-        way = waycache.at(mit->ref);
-
-        if (bg::num_points(way->linestring) > 0 &&
-            bg::num_points(way->polygon) == 0)
-        {
-
-            // Linestrings
-
-            if (!way->isClosed()) {
-
-                // Reverse the line direction if it's necessary
-                if (first && (std::next(mit) != members.end())) {
-                    auto nextWay = std::make_shared<osmobjects::OsmWay>();
-                    auto nextWayId = std::next(mit)->ref;
-                    if (!waycache.count(nextWayId)) {
-                        // Way is not available in cache,
-                        // possibily because Relation is not in the priority area
-                        // or the way was deleted
-                        return;
-                    }
-                    nextWay = waycache.at(nextWayId);
-
-                    if ( bg::num_points(nextWay->linestring) > 0 && 
-                        bg::num_points(way->linestring) > 0 && (
-                        bg::equals(way->linestring.front(), nextWay->linestring.front()) ||
-                        bg::equals(way->linestring.front(), nextWay->linestring.back())
-                    )) {
-                        bg::reverse(way->linestring);
-                    }
-                } else {
-                    if ( bg::num_points(way->linestring) > 0 &&
-                         bg::num_points(lastLinestring) > 0 ) {
-                        if (bg::equals(way->linestring.back(), lastLinestring.back())) {
-                            bg::reverse(way->linestring);
-                        }
-                    }
-                }
-
-                bg::append(part, way->linestring);
-
-                // Check if object is closed
-                if (relation.isMultiPolygon() && bg::equals(part.back(), part.front())) {
-                    // Convert LineString to Polygon
-                    polygon_t polygon;
-                    bg::append(polygon.outer(), part);
-                    if (mit->role == "inner") {
-                        parts_inner.push_back({
-                            linestring_t(),
-                            { polygon }
-                        });
-                    } else {
-                        parts_outer.push_back({
-                            linestring_t(),
-                            { polygon }
-                        });
-                    }
-                    part.clear();
-                    first = true;
-                    justClosed = true;
-                    lastLinestring.clear();
-                } else if (std::next(mit) != members.end()) {
-                    // Check if object is disconnected
-                    auto nextWay = std::make_shared<osmobjects::OsmWay>();
-                    auto nextWayId = std::next(mit)->ref;
-                    if (!waycache.count(nextWayId)) {
-                        // Way is not available in cache,
-                        // possibily because Relation is not in the priority area
-                        // or the way was deleted
-                        return;
-                    }
-                    nextWay = waycache.at(nextWayId);
-                    if ( (bg::num_points(way->linestring) > 0 && bg::num_points(nextWay->linestring) > 0 &&
-                        !bg::equals(way->linestring.back(), nextWay->linestring.front()) &&
-                        !bg::equals(way->linestring.back(), nextWay->linestring.back())) ||
-                        (bg::num_points(nextWay->linestring) == 0)
-                    ) {
-                        parts_outer.push_back({
-                            { part },
-                            polygon_t()
-                        });
-                        part.clear();
-                        first = true;
-                        justClosed = true;
-                        lastLinestring.clear();
-                    }
-                }
-
-
-            } else {
-                // Convert LineString to Polygon
-                if (mit->role == "inner") {
-                    parts_inner.push_back({
-                        linestring_t(),
-                        { way->polygon }
-                    });
-                } else {
-                    parts_outer.push_back({
-                        linestring_t(),
-                        { way->polygon }
-                    });
-                }
-            }
-
-            lastLinestring = way->linestring;
-
-        } else {
-
-            // Polygons
-
-            // When Relation is MultiLineString but way's geometry is a Polygon
-            if (!relation.isMultiPolygon() && bg::num_points(way->linestring) == 0 &&
-                bg::num_points(way->polygon) > 0
-            ) {
-                // Convert way's Polygon to LineString
-                bg::assign_points(way->linestring, way->polygon.outer());
-                if (mit->role == "inner") {
-                        parts_inner.push_back({
-                            { way->linestring },
-                            polygon_t()
-                        });
-                } else {
-                        parts_outer.push_back({
-                            { way->linestring },
-                            polygon_t()
-                        });
-                }
-            } else {
-                if (mit->role == "inner") {
-                    parts_inner.push_back({
-                        linestring_t(),
-                        { way->polygon }
-                    });
-                } else {
-                    if (way->polygon.outer().size() > 0) {
-                        parts_outer.push_back({
-                            linestring_t(),
-                            { way->polygon }
-                        });
-                    } else {
-                        parts_outer.push_back({
-                            { way->linestring },
-                            polygon_t()
-                        });
-                    }
-                }
-            }
-
-        }
-
-        if (first && !justClosed) {
-            first = false;
-        }
-        if (justClosed) {
-            justClosed = false;
-        }
-
-    }
-
-    if (part.size() > 0) {
-        parts_outer.push_back({
-            { part },
-            polygon_t()
-        });
-    }
-
-    // Converts all geometries to WKT strings
-
-    std::string geometry = "";
-    int i = 0;
-
-    // Inner parts
-    for (auto pit = parts_outer.begin(); pit != parts_outer.end(); ++pit) {
-        std::stringstream ss;
-        std::string geometry_str;
-        ++i;
-        if (relation.isMultiPolygon()) {
-            if (bg::num_points(pit->polygon.outer()) > 1) {
-                ss << std::setprecision(12) << bg::wkt(pit->polygon);
-                geometry_str = ss.str();
-                // Erase "POLYGON("
-                geometry_str.erase(0,8);
-                geometry_str.erase(geometry_str.size() - 1);
-                geometry += geometry_str + ",";
-            }
-        } else {
-            if (bg::num_points(pit->linestring) > 1) {
-                ss << std::setprecision(12) << bg::wkt(pit->linestring);
-                geometry_str = ss.str();
-                // Erase "LINESTRING("
-                geometry_str.erase(0,11);
-                geometry_str.erase(geometry_str.size() - 1);
-                geometry += "(" + geometry_str + "),";
-            }
-        }
-    }
-
-    // Outer parts
-    for (auto pit = parts_inner.begin(); pit != parts_inner.end(); ++pit) {
-        std::stringstream ss;
-        std::string geometry_str;
-        ++i;
-        if (relation.isMultiPolygon()) {
-            if (bg::num_points(pit->polygon.outer()) > 1) {
-                ss << std::setprecision(12) << bg::wkt(pit->polygon);
-                geometry_str = ss.str();
-                // Erase "POLYGON("
-                geometry_str.erase(0,8);
-                geometry_str.erase(geometry_str.size() - 1);
-                geometry += geometry_str + ",";
-            }
-        } else {
-            if (bg::num_points(pit->linestring) > 1) {
-                ss << std::setprecision(12) << bg::wkt(pit->linestring);
-                geometry_str = ss.str();
-                // Erase "LINESTRING("
-                geometry_str.erase(0,11);
-                geometry_str.erase(geometry_str.size() - 1);
-                geometry += "(" + geometry_str + "),";
-            }
-        }
-    }
-
-    // Build the final multipolygon or multilinestring to store it as the
-    // relation's geometry 
-    if (geometry.size() > 1) {
-        geometry.erase(geometry.size() - 1);
-        if (relation.isMultiPolygon()) {
-            bg::read_wkt("POLYGON(" + geometry + ")", relation.multipolygon);
-        } else {
-            bg::read_wkt("MULTILINESTRING(" + geometry + ")", relation.multilinestring);
-        }
-    }
-}
-
 bool
 OsmChangeFile::readXML(std::istream &xml)
 {
@@ -651,11 +358,9 @@ OsmChangeFile::on_start_element(const Glib::ustring &name,
         } else if (attr_pair.name == "lat") {
             auto lat = reinterpret_cast<OsmNode *>(change->obj.get());
             lat->setLatitude(std::stod(attr_pair.value));
-            nodecache[lat->id] = lat->point;
         } else if (attr_pair.name == "lon") {
             auto lon = reinterpret_cast<OsmNode *>(change->obj.get());
             lon->setLongitude(std::stod(attr_pair.value));
-            nodecache[lon->id] = lon->point;
         }
     }
 }
@@ -710,14 +415,7 @@ OsmChangeFile::dump(void)
         OsmChange *change = it->get();
         change->dump();
     }
-#if 0
-    std::cerr << "\tDumping nodecache:" << std::endl;
-    for (auto it = std::begin(nodecache); it != std::end(nodecache); ++it) {
-        std::cerr << "\t\t: " << it->first << ": " << bg::wkt(it->second) << std::endl;
-    }
-#endif
 }
-
 
 void
 OsmChangeFile::areaFilter(const multipolygon_t &poly)
@@ -726,56 +424,45 @@ OsmChangeFile::areaFilter(const multipolygon_t &poly)
     boost::timer::auto_cpu_timer timer("OsmChangeFile::areaFilter: took %w seconds\n");
 #endif
     std::map<long, bool> priority;
-    for (auto it = std::begin(changes); it != std::end(changes); it++) {
+    for (const auto& change : changes) {
 
-        OsmChange *change = it->get();
         bool debug = false;
 
         // Filter nodes
-        for (auto nit = std::begin(change->nodes); nit != std::end(change->nodes); ++nit) {
-            OsmNode *node = nit->get();
+        for (const auto& node : change->nodes) {
             if (poly.empty() || bg::within(node->point, poly)) {
                 node->priority = true;
-                nodecache[node->id] = node->point;
-            } else if (!bg::within(node->point, poly)) {
+            } else {
                 node->priority = false;
             }
         }
 
         // Filter ways
-        for (auto wit = std::begin(change->ways); wit != std::end(change->ways); ++wit) {
-            OsmWay *way = wit->get();
-            if (poly.empty()) {
+        for (const auto& way : change->ways) {
+            if (poly.empty() || 
+                (way->isClosed() && bg::intersects(way->polygon, poly)) ||
+                (!way->isClosed() && bg::intersects(way->linestring, poly))
+            ) {
                 way->priority = true;
             } else {
+                // if (way->isClosed()) {
+                //     std::cout << "num of points: " << bg::num_points(way->polygon.outer()) << std::endl;
+                //     std::cout << "Way is closed: true" << std::endl;
+                // } else {
+                //     std::cout << "num of points: " << bg::num_points(way->linestring) << std::endl;
+                //     std::cout << "Way is closed: false" << std::endl;
+                // }
                 way->priority = false;
-                for (auto rit = std::begin(way->refs); rit != std::end(way->refs); ++rit) {
-                    if (nodecache.count(*rit) && bg::within(nodecache[*rit], poly)) {
-                        way->priority = true;
-                        break;
-                    }
-                }
             }
-            if (waycache.count(way->id)) {
-                waycache.at(way->id)->priority = way->priority;
-            }
-
         }
 
         // Filter relations
-        for (auto rit = std::begin(change->relations); rit != std::end(change->relations); ++rit) {
-            OsmRelation *relation = rit->get();
-            if (poly.empty()) {
+        for (const auto& relation : change->relations) {
+            if (poly.empty() || bg::intersects(relation->multilinestring, poly) ||
+                bg::intersects(relation->multipolygon, poly)) {
                 relation->priority = true;
             } else {
                 relation->priority = false;
-                for (auto mit = std::begin(relation->members); mit != std::end(relation->members); ++mit) {
-                    if (waycache.count(mit->ref) && waycache.at(mit->ref)->priority) {
-                        relation->priority = true;
-                        break;
-                    }
-
-                }
             }
         }
     }

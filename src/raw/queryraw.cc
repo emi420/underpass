@@ -55,16 +55,18 @@ namespace bg = boost::geometry;
 /// \namespace queryraw
 namespace queryraw {
 
+const std::string QueryRaw::polyTable = "ways_poly";
+const std::string QueryRaw::lineTable = "ways_line";
+
 QueryRaw::QueryRaw(std::shared_ptr<Pq> db) {
     dbconn = db;
     utils = std::make_shared<DataUtils>(db);
 }
 
-const std::string QueryRaw::polyTable = "ways_poly";
-const std::string QueryRaw::lineTable = "ways_line";
+// Apply change functions receive an OSM feature
+// and return a DB query for insert, update or delete
 
-// Apply the change for a Node. It will return a string of a query for
-// insert, update or delete the Node in the database.
+// Apply the change for a Node.
 std::shared_ptr<std::vector<std::string>>
 QueryRaw::applyChange(const OsmNode &node) const
 {
@@ -134,8 +136,7 @@ QueryRaw::applyChange(const OsmNode &node) const
     return queries;
 }
 
-// Apply the change for a Way. It will return a string of a query for
-// insert, update or delete the Way in the database.
+// Apply the change for a Way.
 std::shared_ptr<std::vector<std::string>>
 QueryRaw::applyChange(const OsmWay &way) const
 {
@@ -293,8 +294,7 @@ QueryRaw::applyChange(const OsmWay &way) const
     return queries;
 }
 
-// Apply the change for a Relation. It will return a string of a query for
-// insert, update or delete the Relation in the database.
+// Apply the change for a Relation.
 std::shared_ptr<std::vector<std::string>>
 QueryRaw::applyChange(const OsmRelation &relation) const
 {
@@ -419,19 +419,17 @@ QueryRaw::applyChange(const OsmRelation &relation) const
     return queries;
 }
 
-// Get all Relations that have at least 1 reference to any Way
-// of a list. This function receives a string of comma separated
-// ids ("213213,328947,287313") and returns a list of Relation
-// objects. This is useful for getting Relations that were
-// indirectly modified by a change on a Way.
-std::list<std::shared_ptr<OsmRelation>>
-QueryRaw::getRelationsByWaysRefs(std::string &wayIds) const
+// Get functions are for getting OSM features
+
+// Get Relations by referenced Ways ids
+std::vector<std::shared_ptr<osmobjects::OsmRelation>>
+QueryRaw::getRelationsByWaysRefs(const std::string &wayIds) const
 {
 #ifdef TIMING_DEBUG
     boost::timer::auto_cpu_timer timer("getRelationsByWaysRefs(wayIds): took %w seconds\n");
 #endif
     // Object to return
-    std::list<std::shared_ptr<osmobjects::OsmRelation>> rels;
+    std::vector<std::shared_ptr<OsmRelation>> rels;
 
     // Query for getting Relations
     std::string relsQuery = "SELECT distinct(osm_id), refs, version, tags, uid, changeset FROM relations WHERE EXISTS (SELECT 1 FROM jsonb_array_elements(refs) AS ref WHERE (ref->>'ref')::bigint IN (" + wayIds + "));";
@@ -439,7 +437,7 @@ QueryRaw::getRelationsByWaysRefs(std::string &wayIds) const
 
     // Fill vector with OsmRelation objects
     for (auto rel_it = rels_result.begin(); rel_it != rels_result.end(); ++rel_it) {
-        auto rel = std::make_shared<OsmRelation>();
+        auto rel = std::make_shared<osmobjects::OsmRelation>();
         rel->id = (*rel_it)[0].as<long>();
         std::string refs_str = (*rel_it)[1].as<std::string>();
         auto members = utils->parseJSONArrayStr(refs_str);
@@ -476,25 +474,26 @@ QueryRaw::getRelationsByWaysRefs(std::string &wayIds) const
     return rels;
 }
 
-// Receives a string with a list of Way ids, get them from the database and store them
-// on a Way cache
-void
-QueryRaw::getWaysByIds(std::string &waysIds, std::map<long, std::shared_ptr<osmobjects::OsmWay>> &waycache) {
+// Get Ways by ids
+std::vector<std::shared_ptr<osmobjects::OsmWay>>
+QueryRaw::getWaysByIds(const std::string &waysIds) const {
 #ifdef TIMING_DEBUG
-    boost::timer::auto_cpu_timer timer("getWaysByIds(waysIds, waycache): took %w seconds\n");
+    boost::timer::auto_cpu_timer timer("getWaysByIds(waysIds): took %w seconds\n");
 #endif
+
+    std::vector<std::shared_ptr<osmobjects::OsmWay>> ways;
+
     // Get Ways and it's geometries (Polygon and LineString)
     std::string waysQuery = "SELECT distinct(osm_id), ST_AsText(geom, 4326), 'polygon' AS type, refs FROM ways_poly wp WHERE osm_id = any(ARRAY[" + waysIds + "]) ";
     waysQuery += "UNION SELECT distinct(osm_id), ST_AsText(geom, 4326), 'linestring' AS type, refs FROM ways_line wp WHERE osm_id = any(ARRAY[" + waysIds + "]);";
     auto ways_result = dbconn->query(waysQuery);
     if (ways_result.size() == 0) {
         log_debug("No results returned!");
-        return;
+        return ways;
     }
 
     std::string resultIds = "";
 
-    // Insert Ways into waycache
     for (auto way_it = ways_result.begin(); way_it != ways_result.end(); ++way_it) {
         auto way = std::make_shared<OsmWay>();
         auto type = (*way_it)[2].as<std::string>();
@@ -511,250 +510,35 @@ QueryRaw::getWaysByIds(std::string &waysIds, std::map<long, std::shared_ptr<osmo
                 std::string refs_str = refs.as<std::string>();
                 way->refs = utils->arrayStrToVector(refs_str);
             }
-            waycache.insert(std::pair(way->id, std::make_shared<osmobjects::OsmWay>(*way)));
+            ways.push_back(way);
         }
     }
+    return ways;
 }
 
-// Receives a list of Osm Changes and the priority area and completes the geometry of
-// all objects (Nodes, Ways and Relations), including all indirectly modified objects.
-//
-// Incomplete geometries happens all the time on Ways and Relations because the data for
-// their geometries (coordinates) can be not present on the OsmChange file. For example
-// if the tags of a Way are modified, but not its references, only the tag information
-// will be on the OsmChange file, but not the coordinates for the referenced Nodes.
-//
-// An indirectly modified object is the one whose geometry was modified by a modification
-// on the geometry of one of its references. For example, if a Node is modified and that
-// Node is referenced on a Way, the Way's geometry must to be updated. Also, if that Way
-// is referenced on a Relation, then the Relation's geometry must be updated too.
-//
-// TODO: divide this function into multiple ones
-//
-void QueryRaw::buildGeometries(std::shared_ptr<OsmChangeFile> osmchanges, const multipolygon_t &poly)
-{
-#ifdef TIMING_DEBUG
-    boost::timer::auto_cpu_timer timer("buildGeometries(osmchanges, poly): took %w seconds\n");
-#endif
-    std::string referencedNodeIds;
-    std::string modifiedNodesIds;
-    std::string modifiedWaysIds;
-    std::vector<long> removedWays;
-    std::vector<long> removedRelations;
-
-    for (auto it = std::begin(osmchanges->changes); it != std::end(osmchanges->changes); it++) {
-        OsmChange *change = it->get();
-        for (auto wit = std::begin(change->ways); wit != std::end(change->ways); ++wit) {
-            OsmWay *way = wit->get();
-
-            if (way->action != osmobjects::remove) {
-
-                if (way->action == osmobjects::modify) {
-                    modifiedWaysIds += std::to_string(way->id) + ",";
-                }
-
-                // Save referenced Nodes ids for later use. The geometries of these
-                // Nodes will be needed later when building geometries for Ways
-                for (auto rit = std::begin(way->refs); rit != std::end(way->refs); ++rit) {
-                    if (!osmchanges->nodecache.count(*rit)) {
-                        referencedNodeIds += std::to_string(*rit) + ",";
-                    }
-                }
-            } else {
-                // Save removed Ways for later use. This list will be used to known
-                // which Ways will be skipped when building geometries
-                removedWays.push_back(way->id);
-            }
-        }
-
-        // Save modified nodes for later use. This list will be used for getting
-        // indirectly modified Ways
-        for (auto nit = std::begin(change->nodes); nit != std::end(change->nodes); ++nit) {
-            OsmNode *node = nit->get();
-            if (node->action == osmobjects::modify) {
-
-                // Get only modified nodes ids inside the priority area
-                if (poly.empty() || bg::within(node->point, poly)) {
-                    modifiedNodesIds += std::to_string(node->id) + ",";
-                }
-            }
-        }
-
-        // Save removed Relations for later use. This list will be used to known
-        // which Relations will be skipped when building geometries
-        for (auto rel_it = std::begin(change->relations); rel_it != std::end(change->relations); ++rel_it) {
-            OsmRelation *relation = rel_it->get();
-            removedRelations.push_back(relation->id);
-        }
+// Get Nodes by ids
+std::vector<std::shared_ptr<osmobjects::OsmNode>>
+QueryRaw::getNodesByIds(const std::string &nodeIds) const {
+    std::vector<std::shared_ptr<osmobjects::OsmNode>> nodes;
+    std::string nodesQuery = "SELECT osm_id, st_x(geom) AS lat, st_y(geom) AS lon FROM nodes WHERE osm_id IN (" + nodeIds + ");";
+    auto result = dbconn->query(nodesQuery);
+    for (const auto& n : result) {
+        auto node_id = n[0].as<long>();
+        auto node_lat = n[2].as<double>();
+        auto node_lon = n[1].as<double>();
+        OsmNode node(node_lat, node_lon);
+        node.id = node_id;
+        nodes.push_back(std::make_shared<osmobjects::OsmNode>(node));
     }
-
-    // Add indirectly modified ways to osmchanges. An indirectly modified Way is a Way
-    // whose geoemtry was modified because one of it's referenced Nodes was modified
-    if (modifiedNodesIds.size() > 1) {
-        modifiedNodesIds.erase(modifiedNodesIds.size() - 1);
-
-        // Get all Ways that have at least one reference to one of the modified Nodes
-        auto modifiedWays = getWaysByNodesRefs(modifiedNodesIds);
-
-        // Add a new change for the indirectly modified Way
-        auto change = std::make_shared<OsmChange>(none);
-        for (auto wit = modifiedWays.begin(); wit != modifiedWays.end(); ++wit) {
-           auto way = std::make_shared<OsmWay>(*wit->get());
-
-           // If the Way IS NOT removed
-           if (std::find(removedWays.begin(), removedWays.end(), way->id) == removedWays.end()) {
-
-                // Save referenced Nodes. This list will be used for getting the geometries of
-                // these Nodes, used when building the Way geometry
-                for (auto rit = std::begin(way->refs); rit != std::end(way->refs); ++rit) {
-                    if (!osmchanges->nodecache.count(*rit)) {
-                        referencedNodeIds += std::to_string(*rit) + ",";
-                    }
-                }
-
-                // Flag it as modified geometry. This means that only the geometry was modified,
-                // nor its tags, version, etc.
-                way->action = osmobjects::modify_geom;
-
-                // Add the Way to the list of Ways in the OsmChange
-                change->ways.push_back(way);
-
-                // Save the id of the indirectly modified Way for later use. This will be used
-                // for identifying which Relations were indirectly modified by this change.
-                modifiedWaysIds += std::to_string(way->id) + ",";
-           }
-        }
-        osmchanges->changes.push_back(change);
-    }
-
-    // Add indirectly modified Relations to osmchanges. This is the case when a Way referenced
-    // in a Relation was modified (or indirectly modified by a change on one of its Nodes)
-    if (modifiedWaysIds.size() > 1) {
-
-        // Get indirectly modified Relations from the DB, using the list of Ways
-        // that were modified
-        modifiedWaysIds.erase(modifiedWaysIds.size() - 1);
-        auto modifiedRelations = getRelationsByWaysRefs(modifiedWaysIds);
-
-        // Create a new change for the indirecty modified Relation
-        auto change = std::make_shared<OsmChange>(none);
-        for (auto rel_it = modifiedRelations.begin(); rel_it != modifiedRelations.end(); ++rel_it) {
-           auto relation = std::make_shared<OsmRelation>(*rel_it->get());
-           // If the Relation IS NOT removed
-           if (std::find(removedRelations.begin(), removedRelations.end(), relation->id) == removedRelations.end()) {
-                // Flag it as modified geometry. This means that only the geometry was modified,
-                // nor its tags, version, etc.
-                relation->action = osmobjects::modify_geom;
-
-                // Add the Relation to the list of Relation in the OsmChange
-                change->relations.push_back(relation);
-           }
-        }
-        osmchanges->changes.push_back(change);
-    }
-
-    // Fill nodecache with referenced Nodes. This will be used later when building the
-    // geometries of Ways
-    if (referencedNodeIds.size() > 1) {
-        referencedNodeIds.erase(referencedNodeIds.size() - 1);
-        // Get Nodes geometries from DB
-        std::string nodesQuery = "SELECT osm_id, st_x(geom) AS lat, st_y(geom) AS lon FROM nodes WHERE osm_id IN (" + referencedNodeIds + ");";
-        auto result = dbconn->query(nodesQuery);
-        if (result.size() > 0) {
-            // Fill nodecache
-            for (auto node_it = result.begin(); node_it != result.end(); ++node_it) {
-                auto node_id = (*node_it)[0].as<long>();
-                auto node_lat = (*node_it)[2].as<double>();
-                auto node_lon = (*node_it)[1].as<double>();
-                OsmNode node(node_lat, node_lon);
-                osmchanges->nodecache[node_id] = node.point;
-            }
-        }
-    }
-
-    if (modifiedWaysIds.size() > 1) {
-        // Get geometries for all modified Ways
-        getWaysByIds(modifiedWaysIds, osmchanges->waycache);
-    }
-
-    // Build Ways geometries using nodecache
-    for (auto it = std::begin(osmchanges->changes); it != std::end(osmchanges->changes); it++) {
-        OsmChange *change = it->get();
-        for (auto wit = std::begin(change->ways); wit != std::end(change->ways); ++wit) {
-            OsmWay *way = wit->get();
-
-            // Only build geometries for Ways with incomplete geometries
-            if (bg::num_points(way->linestring) != way->refs.size()) {
-
-                way->linestring.clear();
-                for (auto rit = way->refs.begin(); rit != way->refs.end(); ++rit) {
-                    if (osmchanges->nodecache.count(*rit)) {
-                        bg::append(way->linestring, osmchanges->nodecache.at(*rit));
-                    }
-                }
-                if (way->isClosed()) {
-                    way->polygon = { {std::begin(way->linestring), std::end(way->linestring)} };
-                    way->linestring.clear();
-                }
-            }
-
-            // Save Way pointer for later use. This will be used when building Relations geometries.
-            if (poly.empty() || bg::within(way->linestring, poly)) {
-                if (osmchanges->waycache.count(way->id)) {
-                    if (way->isClosed()) {
-                        osmchanges->waycache.at(way->id)->polygon = way->polygon;
-                    } else {
-                        osmchanges->waycache.at(way->id)->linestring = way->linestring;
-                    }
-                } else {
-                    osmchanges->waycache.insert(std::make_pair(way->id, std::make_shared<osmobjects::OsmWay>(*way)));
-                }
-            }
-
-        }
-    }
-
-    // Build list of Relations that have missing geometries. This list will be used for
-    // querying the database and get the geometries of the referenced Ways .
-    std::string relsForWayCacheIds;
-    for (auto it = std::begin(osmchanges->changes); it != std::end(osmchanges->changes); it++) {
-        OsmChange *change = it->get();
-        for (auto rel_it = std::begin(change->relations); rel_it != std::end(change->relations); ++rel_it) {
-            OsmRelation *relation = rel_it->get();
-            if (relation->action != osmobjects::remove) {
-                for (auto mit = relation->members.begin(); mit != relation->members.end(); ++mit) {
-                    if (mit->type == osmobjects::way && !osmchanges->waycache.count(mit->ref)) {
-                        relsForWayCacheIds += std::to_string(mit->ref) + ",";
-                    }
-                }
-            }
-        }
-    }
-    // Get the geometries of the referenced Ways from the DB.
-    if (relsForWayCacheIds != "") {
-        relsForWayCacheIds.erase(relsForWayCacheIds.size() - 1);
-        getWaysByIds(relsForWayCacheIds, osmchanges->waycache);
-    }
-
-    // Build geometries for Relations (Polygon or MultiLinestring)
-    for (auto it = std::begin(osmchanges->changes); it != std::end(osmchanges->changes); it++) {
-        OsmChange *change = it->get();
-        for (auto rel_it = std::begin(change->relations); rel_it != std::end(change->relations); ++rel_it) {
-            OsmRelation *relation = rel_it->get();
-            // Skip removed relations
-            if (relation->action != osmobjects::remove) {
-                osmchanges->buildRelationGeometry(*relation);
-            }
-        }
-    }
+    return nodes;
 }
 
-// Fill Node cache with Nodes referenced from Ways
-void
-QueryRaw::getNodeCacheFromWays(std::shared_ptr<std::vector<OsmWay>> ways, std::map<double, point_t> &nodecache) const
+// Get Nodes by Ways that have references to them
+std::vector<std::shared_ptr<osmobjects::OsmNode>>
+QueryRaw::getNodesFromWays(const std::shared_ptr<std::vector<OsmWay>> &ways) const
 {
 #ifdef TIMING_DEBUG
-    boost::timer::auto_cpu_timer timer("getNodeCacheFromWays(ways, nodecache): took %w seconds\n");
+    boost::timer::auto_cpu_timer timer("getNodeCacheFromWays(ways): took %w seconds\n");
 #endif
 
     // Build a string list of all Nodes ids referenced from Ways
@@ -764,38 +548,22 @@ QueryRaw::getNodeCacheFromWays(std::shared_ptr<std::vector<OsmWay>> ways, std::m
             nodeIds += std::to_string(*rit) + ",";
         }
     }
-
     if (nodeIds.size() > 1) {
         nodeIds.erase(nodeIds.size() - 1);
-
-        // Get Nodes geometries from the DB
-        std::string nodesQuery = "SELECT osm_id, st_x(geom) AS lat, st_y(geom) AS lon FROM nodes WHERE osm_id IN (" + nodeIds + ") and st_x(geom) IS NOT null AND st_y(geom) IS NOT null;";
-        auto result = dbconn->query(nodesQuery);
-        if (result.size() == 0) {
-            log_debug("No results returned!");
-            return;
-        }
-
-        // Fill nodecache with Nodes geometries (Points)
-        for (auto node_it = result.begin(); node_it != result.end(); ++node_it) {
-            auto node_id = (*node_it)[0].as<long>();
-            auto node_lat = (*node_it)[1].as<double>();
-            auto node_lon = (*node_it)[2].as<double>();
-            auto point = point_t(node_lat, node_lon);
-            nodecache.insert(std::make_pair(node_id, point));
-        }
     }
+
+    auto nodes = getNodesByIds(nodeIds);
+    return nodes;
 }
 
-// Receive a string of comma separated values of Nodes ids
-// and return a vector of Ways
-std::list<std::shared_ptr<OsmWay>>
-QueryRaw::getWaysByNodesRefs(std::string &nodeIds) const
+// Get Ways that have Nodes in their references
+std::vector<std::shared_ptr<osmobjects::OsmWay>>
+QueryRaw::getWaysByNodesRefs(const std::string &nodeIds) const
 {
 #ifdef TIMING_DEBUG
     boost::timer::auto_cpu_timer timer("getWaysByNodesRefs(nodeIds): took %w seconds\n");
 #endif
-    std::list<std::shared_ptr<osmobjects::OsmWay>> ways;
+    std::vector<std::shared_ptr<osmobjects::OsmWay>> ways;
     std::vector<std::string> queries;
 
     // Get all Ways that have references to Nodes from the DB, including Polygons and LineString geometries
@@ -840,6 +608,8 @@ QueryRaw::getWaysByNodesRefs(std::string &nodeIds) const
     }
     return ways;
 }
+
+// Utility functions
 
 // Returns latest timestamp from DB - 5 hours
 boost::posix_time::ptime

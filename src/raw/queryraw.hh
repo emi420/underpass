@@ -1,5 +1,6 @@
 //
 // Copyright (c) 2023, 2024 Humanitarian OpenStreetMap Team
+// Copyright (c) 2025 Emilio Mariscal
 //
 // This file is part of Underpass.
 //
@@ -69,28 +70,18 @@ class QueryRaw {
     // OSM DB connection
     std::shared_ptr<Pq> dbconn;
 
-    /// Build query for processed Node
+    /// Build queries for apply changes to OSM features into DB
     std::shared_ptr<std::vector<std::string>> applyChange(const OsmNode &node) const;
-    /// Build query for processed Way
     std::shared_ptr<std::vector<std::string>> applyChange(const OsmWay &way) const;
-    /// Build query for processed Relation
     std::shared_ptr<std::vector<std::string>> applyChange(const OsmRelation &relation) const;
-    // Update Relation geometry only
-    std::shared_ptr<std::vector<std::string>> applyChange(const OsmRelation &relation, bool geomOnly) const;
 
-    /// Build all geometries for a OsmChange file
-    void buildGeometries(std::shared_ptr<OsmChangeFile> osmchanges, const multipolygon_t &poly);
+    // Get OSM features from DB
+    virtual std::vector<std::shared_ptr<osmobjects::OsmRelation>> getRelationsByWaysRefs(const std::string &wayIds) const;
+    virtual std::vector<std::shared_ptr<osmobjects::OsmWay>> getWaysByIds(const std::string &waysIds) const;
+    virtual std::vector<std::shared_ptr<osmobjects::OsmNode>> getNodesByIds(const std::string &nodeIds) const;
+    std::vector<std::shared_ptr<osmobjects::OsmNode>> getNodesFromWays(const std::shared_ptr<std::vector<OsmWay>> &ways) const;
+    virtual std::vector<std::shared_ptr<osmobjects::OsmWay>> getWaysByNodesRefs(const std::string &nodeIds) const;
 
-    /// Get nodes for filling Node cache from refs on ways 
-    void getNodeCacheFromWays(std::shared_ptr<std::vector<OsmWay>> ways, std::map<double, point_t> &nodecache) const;
-    // Get ways by node refs (used for ways geometries)
-    std::list<std::shared_ptr<OsmWay>> getWaysByNodesRefs(std::string &nodeIds) const;
-    // Get ways by ids (used for relations geometries)
-    void getWaysByIds(std::string &relsForWayCacheIds, std::map<long, std::shared_ptr<osmobjects::OsmWay>> &waycache);
-    // Get relations by referenced ways (used for relations geometries)
-    std::list<std::shared_ptr<OsmRelation>> getRelationsByWaysRefs(std::string &wayIds) const;
-
-    // Get ways by page
     // Get latest timestamp from DB
     boost::posix_time::ptime getLatestTimestamp(void);
 

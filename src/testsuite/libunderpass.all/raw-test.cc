@@ -1,5 +1,6 @@
 //
 // Copyright (c) 2024 Humanitarian OpenStreetMap Team
+// Copyright (c) 2025 Emilio Mariscal
 //
 // This file is part of Underpass.
 //
@@ -25,6 +26,8 @@
 #include <string.h>
 #include "replicator/replication.hh"
 #include <boost/geometry.hpp>
+#include "raw/queryraw.hh"
+#include "raw/geobuilder.hh"
 
 using namespace replication;
 using namespace logger;
@@ -81,40 +84,42 @@ bool processFile(const std::string &filename, std::shared_ptr<Pq> &db) {
     std::string destdir_base = DATADIR;
     multipolygon_t poly;
     osmchanges->readChanges(destdir_base + "/testsuite/testdata/raw/" + filename);
-    queryraw->buildGeometries(osmchanges, poly);
-    osmchanges->areaFilter(poly);
-    auto rawquery = std::make_shared<std::vector<std::string>>();
 
-    for (auto it = std::begin(osmchanges->changes); it != std::end(osmchanges->changes); ++it) {
-        osmchange::OsmChange *change = it->get();
-        // Nodes
-        for (auto nit = std::begin(change->nodes); nit != std::end(change->nodes); ++nit) {
-            osmobjects::OsmNode *node = nit->get();
-            auto changes = *queryraw->applyChange(*node);
-            for (auto it = changes.begin(); it != changes.end(); ++it) {
-                rawquery->push_back(*it);
+    // Build geometries
+    geobuilder::GeoBuilder geobuilder(poly, queryraw);
+    geobuilder.buildGeometries(osmchanges);
+
+    // osmchanges->areaFilter(poly);
+    auto rawquery = std::vector<std::string>();
+
+    // Raw data
+    for (const auto& change : osmchanges->changes) {
+        for (const auto& node : change->nodes) {
+            auto queries = queryraw->applyChange(*node);
+            for (const auto& query : *queries) {
+                // std::cout << "query :" << query << std::endl;
+                rawquery.push_back(query);
             }
         }
-        // Ways
-        for (auto wit = std::begin(change->ways); wit != std::end(change->ways); ++wit) {
-            osmobjects::OsmWay *way = wit->get();
-            auto changes = *queryraw->applyChange(*way);
-            for (auto it = changes.begin(); it != changes.end(); ++it) {
-                rawquery->push_back(*it);
+        for (const auto& way : change->ways) {
+            auto queries = queryraw->applyChange(*way);
+            for (const auto& query : *queries) {
+                // std::cout << "query :" << query << std::endl;
+                rawquery.push_back(query);
             }
         }
-        // Relations
-        for (auto rit = std::begin(change->relations); rit != std::end(change->relations); ++rit) {
-            osmobjects::OsmRelation *relation = rit->get();
-            auto changes = *queryraw->applyChange(*relation);
-            for (auto it = changes.begin(); it != changes.end(); ++it) {
-                rawquery->push_back(*it);
+        for (const auto& relation : change->relations) {
+            auto queries = queryraw->applyChange(*relation);
+            for (const auto& query : *queries) {
+                // std::cout << "query :" << query << std::endl;
+                rawquery.push_back(query);
             }
         }
     }
+    
 
-    for (auto rit = std::begin(*rawquery); rit != std::end(*rawquery); ++rit) {
-        db->query(*rit);
+    for (const auto& query : rawquery) {
+        db->query(query);
     }
 }
 
@@ -178,10 +183,14 @@ main(int argc, char *argv[])
         processFile("raw-case-2.osc", db);
 
         std::string waysIds = "101874,101875";
-        queryraw->getWaysByIds(waysIds, waycache);
+        auto ways = queryraw->getWaysByIds(waysIds);
+        for (const auto& w : ways) {
+            std::cout << "Way >>>>> " << w->id << std::endl;
+            waycache.insert(std::make_pair(w->id, w));
+        }
 
         // 4 created Nodes, 1 created Way (same changeset)
-        if ( getWKT(waycache.at(101874)->polygon).compare(expectedGeometries[0]) == 0) {
+        if ( waycache.find(101874) != waycache.end() && getWKT(waycache.at(101874)->polygon).compare(expectedGeometries[0]) == 0) {
             runtest.pass("4 created Nodes, 1 created Ways (same changeset)");
         } else {
             runtest.fail("4 created Nodes, 1 created Ways (same changeset)");
@@ -189,7 +198,7 @@ main(int argc, char *argv[])
         }
 
         // 1 created Way, 4 existing Nodes (different changeset)
-        if ( getWKT(waycache.at(101875)->polygon).compare(expectedGeometries[1]) == 0) {
+        if ( waycache.find(101875) != waycache.end() && getWKT(waycache.at(101875)->polygon).compare(expectedGeometries[1]) == 0) {
             runtest.pass("1 created Way, 4 existing Nodes (different changesets)");
         } else {
             runtest.fail("1 created Way, 4 existing Nodes (different changesets)");
@@ -199,8 +208,12 @@ main(int argc, char *argv[])
         // 1 modified node, indirectly modify other existing ways
         processFile("raw-case-3.osc", db);
         waycache.erase(101875);
-        queryraw->getWaysByIds(waysIds, waycache);
-        if ( getWKT(waycache.at(101875)->polygon).compare(expectedGeometries[2]) == 0) {
+        auto ways2 = queryraw->getWaysByIds(waysIds);
+        for (const auto& w : ways2) {
+            waycache.insert(std::make_pair(w->id, w));
+        }
+        
+        if ( waycache.find(101875) != waycache.end() && getWKT(waycache.at(101875)->polygon).compare(expectedGeometries[2]) == 0) {
             runtest.pass("1 modified Node, indirectly modify other existing Ways (different changesets)");
         } else {
             runtest.fail("1 modified Node, indirectly modify other existing Ways (different changesets) - - raw-case-3.osc");
