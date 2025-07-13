@@ -21,6 +21,7 @@ It is designed to be **high performance** on modest hardware.
 |⚙️| **Migrate to CMake** |
 | | Debian dist |
 | | MacOS dist |
+| | Update docs |
 | | Python plugins support |
 
 ## Getting started
