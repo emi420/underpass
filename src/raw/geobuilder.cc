@@ -42,6 +42,8 @@
 #include "raw/geobuilder.hh"
 #include "osm/osmobjects.hh"
 #include "osm/osmchange.hh"
+#include <boost/algorithm/string/join.hpp>
+#include <boost/range/adaptor/transformed.hpp>
 
 using namespace pq;
 using namespace geobuilder;
@@ -78,13 +80,18 @@ GeoBuilder::buildGeometries(std::shared_ptr<OsmChangeFile> &osmchanges)
     addIndirectlyModifiedWays(osmchanges);
     addIndirectlyModifiedRelations(osmchanges);
 
-    // Fill caches
+    // Fill fill caches and build geometries
     fillNodeCache(osmchanges);
-    fillWayCache(osmchanges);
-    
-    // Build geometries
     buildWays(osmchanges);
+    fillWayCache(osmchanges);
     buildRelations(osmchanges);
+}
+
+// Join a vector of long numbers and return a comma separated string
+std::string joinIds(const std::vector<long>& vec) {
+    using namespace boost::adaptors;
+    auto asStrings = vec | transformed([](long v) { return std::to_string(v); });
+    return boost::algorithm::join(asStrings, ",");
 }
 
 void
@@ -100,14 +107,15 @@ GeoBuilder::preProcessChanges(std::shared_ptr<OsmChangeFile> &osmchanges) {
 
                 // Keep track of modified ways
                 if (way->action == osmobjects::modify) {
-                    modifiedWaysIds += std::to_string(way->id) + ",";
+                    modifiedWaysIds.push_back(way->id);
+                    waycache.insert(std::make_pair(way->id, way));
                 }
 
                 // Save referenced Nodes ids for later use. The geometries of these
                 // Nodes will be needed later when building geometries for Ways
-                for (auto rit = std::begin(way->refs); rit != std::end(way->refs); ++rit) {
-                    if (!nodecache.count(*rit)) {
-                        referencedNodeIds += std::to_string(*rit) + ",";
+                for (const auto& ref : way->refs) {
+                    if (!nodecache.count(ref)) {
+                        referencedNodeIds.push_back(ref);
                     }
                 }
 
@@ -124,12 +132,10 @@ GeoBuilder::preProcessChanges(std::shared_ptr<OsmChangeFile> &osmchanges) {
         auto& nodes = changePtr->nodes;
         for (const auto& node : nodes) {
             if (!node) continue;
-
             if (node->action == osmobjects::modify) {
-
                 // Get only modified nodes ids inside the priority area
                 if (poly.empty() || bg::within(node->point, poly)) {
-                    modifiedNodesIds += std::to_string(node->id) + ",";
+                    modifiedNodesIds.push_back(node->id);
                 }
             }
         }
@@ -140,6 +146,12 @@ GeoBuilder::preProcessChanges(std::shared_ptr<OsmChangeFile> &osmchanges) {
         for (const auto& relation : relations) {
             if (!relation) continue;
             removedRelations.push_back(relation->id);
+
+            // Keep track of modified relations
+            if (relation->action == osmobjects::modify) {
+                modifiedRelsIds.push_back(relation->id);
+            }
+
         }
     }
 }
@@ -158,25 +170,26 @@ void
 GeoBuilder::addIndirectlyModifiedWays(std::shared_ptr<OsmChangeFile> &osmchanges) {
     // Add indirectly modified ways to osmchanges. An indirectly modified Way is a Way
     // whose geoemtry was modified because one of it's referenced Nodes was modified
-    if (modifiedNodesIds.size() > 1) {
-        modifiedNodesIds.erase(modifiedNodesIds.size() - 1);
+
+    if (modifiedNodesIds.size() > 0) {
 
         // Get all Ways that have at least one reference to one of the modified Nodes
-        auto modifiedWays = queryraw->getWaysByNodesRefs(modifiedNodesIds);
+        auto indirectlyModifiedWays = queryraw->getWaysByNodesRefs(joinIds(modifiedNodesIds));
 
         // Add a new change for the indirectly modified Way
         auto change = std::make_shared<OsmChange>(none);
-        for (auto wit = modifiedWays.begin(); wit != modifiedWays.end(); ++wit) {
-           auto way = std::make_shared<OsmWay>(*wit->get());
-
-           // If the Way IS NOT removed
-           if (std::find(removedWays.begin(), removedWays.end(), way->id) == removedWays.end()) {
+        for (const auto& way : indirectlyModifiedWays) {
+           // If the Way wasn't removed or modified
+           if (
+                std::find(removedWays.begin(), removedWays.end(), way->id) == removedWays.end() &&
+                std::find(modifiedWaysIds.begin(), modifiedWaysIds.end(), way->id) == modifiedWaysIds.end()
+            ) {
 
                 // Save referenced Nodes. This list will be used for getting the geometries of
                 // these Nodes, used when building the Way geometry
-                for (auto rit = std::begin(way->refs); rit != std::end(way->refs); ++rit) {
-                    if (!nodecache.count(*rit)) {
-                        referencedNodeIds += std::to_string(*rit) + ",";
+                for (const auto& ref : way->refs) {
+                    if (!nodecache.count(ref)) {
+                        referencedNodeIds.push_back(ref);
                     }
                 }
 
@@ -189,7 +202,7 @@ GeoBuilder::addIndirectlyModifiedWays(std::shared_ptr<OsmChangeFile> &osmchanges
 
                 // Save the id of the indirectly modified Way for later use. This will be used
                 // for identifying which Relations were indirectly modified by this change.
-                modifiedWaysIds += std::to_string(way->id) + ",";
+                modifiedWaysIds.push_back(way->id);
            }
         }
         osmchanges->changes.push_back(change);
@@ -200,19 +213,20 @@ void
 GeoBuilder::addIndirectlyModifiedRelations(std::shared_ptr<OsmChangeFile> &osmchanges) {
     // Add indirectly modified Relations to osmchanges. This is the case when a Way referenced
     // in a Relation was modified (or indirectly modified by a change on one of its Nodes)
-    if (modifiedWaysIds.size() > 1) {
+    if (modifiedWaysIds.size() > 0) {
 
         // Get indirectly modified Relations from the DB, using the list of Ways
         // that were modified
-        modifiedWaysIds.erase(modifiedWaysIds.size() - 1);
-        auto modifiedRelations = queryraw->getRelationsByWaysRefs(modifiedWaysIds);
+        auto indirectlyModifiedRelations = queryraw->getRelationsByWaysRefs(joinIds(modifiedWaysIds));
 
         // Create a new change for the indirecty modified Relation
         auto change = std::make_shared<OsmChange>(none);
-        for (auto rel_it = modifiedRelations.begin(); rel_it != modifiedRelations.end(); ++rel_it) {
-           auto relation = std::make_shared<OsmRelation>(*rel_it->get());
-           // If the Relation IS NOT removed
-           if (std::find(removedRelations.begin(), removedRelations.end(), relation->id) == removedRelations.end()) {
+        for (const auto& relation : indirectlyModifiedRelations) {
+           // If the Relation // wasn't removed or modified
+           if (
+                std::find(removedRelations.begin(), removedRelations.end(), relation->id) == removedRelations.end() &&
+                std::find(modifiedRelsIds.begin(), modifiedRelsIds.end(), relation->id) == modifiedRelsIds.end()
+            ) {
                 // Flag it as modified geometry. This means that only the geometry was modified,
                 // nor its tags, version, etc.
                 relation->action = osmobjects::modify_geom;
@@ -237,10 +251,9 @@ GeoBuilder::fillNodeCache(std::shared_ptr<OsmChangeFile> &osmchanges) {
 
     // Fill nodecache with referenced Nodes. This will be used later when building the
     // geometries of Ways
-    if (referencedNodeIds.size() > 1) {
-        referencedNodeIds.erase(referencedNodeIds.size() - 1);
+    if (referencedNodeIds.size() > 0) {
         // Get Nodes geometries
-        auto result = queryraw->getNodesByIds(referencedNodeIds);
+        auto result = queryraw->getNodesByIds(joinIds(referencedNodeIds));
         // Fill nodecache
         for (const auto& node : result) {
             nodecache.insert(std::make_pair(node->id, node));
@@ -250,9 +263,9 @@ GeoBuilder::fillNodeCache(std::shared_ptr<OsmChangeFile> &osmchanges) {
 
 void
 GeoBuilder::fillWayCache(std::shared_ptr<OsmChangeFile> &osmchanges) {
-    if (modifiedWaysIds.size() > 1) {
+    if (modifiedWaysIds.size() > 0) {
         // Get geometries for all modified Ways
-        auto ways = queryraw->getWaysByIds(modifiedWaysIds);
+        auto ways = queryraw->getWaysByIds(joinIds(modifiedWaysIds));
         for (const auto& w : ways) {
             waycache.insert(std::make_pair(w->id, w));
         }
@@ -299,15 +312,13 @@ void
 GeoBuilder::buildRelations(std::shared_ptr<OsmChangeFile> &osmchanges) {
     // Build list of Relations that have missing geometries. This list will be used for
     // querying the database and get the geometries of the referenced Ways .
-    std::string relsForWayCacheIds;
-    for (auto it = std::begin(osmchanges->changes); it != std::end(osmchanges->changes); it++) {
-        OsmChange *change = it->get();
-        for (auto rel_it = std::begin(change->relations); rel_it != std::end(change->relations); ++rel_it) {
-            OsmRelation *relation = rel_it->get();
+    std::vector<long> relsForWayCacheIds;
+    for (const auto& change : osmchanges->changes) {
+        for (const auto& relation : change->relations) {
             if (relation->action != osmobjects::remove) {
-                for (auto mit = relation->members.begin(); mit != relation->members.end(); ++mit) {
-                    if (mit->type == osmobjects::way && !waycache.count(mit->ref)) {
-                        relsForWayCacheIds += std::to_string(mit->ref) + ",";
+                for (const auto& member : relation->members) {
+                    if (member.type == osmobjects::way && !waycache.count(member.ref)) {
+                        relsForWayCacheIds.push_back(member.ref);
                     }
                 }
             }
@@ -315,19 +326,16 @@ GeoBuilder::buildRelations(std::shared_ptr<OsmChangeFile> &osmchanges) {
     }
 
     // Get the geometries of the referenced Ways from the DB.
-    if (relsForWayCacheIds != "") {
-        relsForWayCacheIds.erase(relsForWayCacheIds.size() - 1);
-        auto ways = queryraw->getWaysByIds(relsForWayCacheIds);
+    if (relsForWayCacheIds.size() > 0) {
+        auto ways = queryraw->getWaysByIds(joinIds(relsForWayCacheIds));
         for (const auto& w : ways) {
             waycache.insert(std::make_pair(w->id, w));
         }
     }
 
     // Build geometries for Relations (Polygon or MultiLinestring)
-    for (auto it = std::begin(osmchanges->changes); it != std::end(osmchanges->changes); it++) {
-        OsmChange *change = it->get();
-        for (auto rel_it = std::begin(change->relations); rel_it != std::end(change->relations); ++rel_it) {
-            OsmRelation *relation = rel_it->get();
+    for (const auto& change : osmchanges->changes) {
+        for (const auto& relation : change->relations) {
             // Skip removed relations
             if (relation->action != osmobjects::remove) {
                 buildRelationGeometry(*relation);
@@ -349,9 +357,9 @@ GeoBuilder::buildRelationGeometry(osmobjects::OsmRelation &relation) {
     std::vector<osmobjects::OsmRelationMember> members;
 
     // Skip members that are not Way
-    for (auto mit = relation.members.begin(); mit != relation.members.end(); ++mit) {
-        if (mit->type == osmobjects::way) {
-            members.push_back(*mit);
+    for (const auto& member : relation.members) {
+        if (member.type == osmobjects::way) {
+            members.push_back(member);
         }
     }
 

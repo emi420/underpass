@@ -117,6 +117,7 @@ bool processFile(const std::string &filename, std::shared_ptr<Pq> &db) {
     for (const auto& query : rawquery) {
         db->query(query);
     }
+    return true;
 }
 
 const std::vector<std::string> expectedGeometries = {
@@ -151,6 +152,7 @@ getWKTFromDB(const std::string &table, const long id, std::shared_ptr<Pq> &db) {
     for (auto r_it = result.begin(); r_it != result.end(); ++r_it) {
         return (*r_it)[0].as<std::string>();
     }
+    return "";
 }
 
 int
@@ -186,7 +188,7 @@ main(int argc, char *argv[])
         if ( waycache.find(101874) != waycache.end() && getWKT(waycache.at(101874)->polygon).compare(expectedGeometries[0]) == 0) {
             runtest.pass("4 created Nodes, 1 created Ways (same changeset)");
         } else {
-            runtest.fail("4 created Nodes, 1 created Ways (same changeset)");
+            runtest.fail("4 created Nodes, 1 created Ways (same changeset) - raw-case-1/2.osc");
             return 1;
         }
 
@@ -194,7 +196,7 @@ main(int argc, char *argv[])
         if ( waycache.find(101875) != waycache.end() && getWKT(waycache.at(101875)->polygon).compare(expectedGeometries[1]) == 0) {
             runtest.pass("1 created Way, 4 existing Nodes (different changesets)");
         } else {
-            runtest.fail("1 created Way, 4 existing Nodes (different changesets)");
+            runtest.fail("1 created Way, 4 existing Nodes (different changesets) raw-case-1/2.osc");
             return 1;
         }
 
@@ -209,7 +211,7 @@ main(int argc, char *argv[])
         if ( waycache.find(101875) != waycache.end() && getWKT(waycache.at(101875)->polygon).compare(expectedGeometries[2]) == 0) {
             runtest.pass("1 modified Node, indirectly modify other existing Ways (different changesets)");
         } else {
-            runtest.fail("1 modified Node, indirectly modify other existing Ways (different changesets) - - raw-case-3.osc");
+            runtest.fail("1 modified Node, indirectly modify other existing Ways (different changesets) - raw-case-3.osc");
             return 1;
         }
 
@@ -218,7 +220,7 @@ main(int argc, char *argv[])
         if ( getWKTFromDB("relations", 211766, db).compare(expectedGeometries[3]) == 0) {
             runtest.pass("1 created Relation referencing 1 created Way and 1 existing Way (different changesets)");
         } else {
-            runtest.fail("1 created Relation referencing 1 created Way and 1 existing Way (different changesets) - - raw-case-4.osc");
+            runtest.fail("1 created Relation referencing 1 created Way and 1 existing Way (different changesets) - raw-case-4.osc");
             return 1;
         }
 
@@ -317,7 +319,5 @@ main(int argc, char *argv[])
     } else {
         std::cout << "ERROR: can't connect to the test DB (" << dbconn << " dbname=underpass_test" << ")" << std::endl;
     }
-
-
-
+    return 1;
 }

@@ -440,51 +440,42 @@ threadOsmChange(OsmChangeTask osmChangeTask)
     osmchanges->areaFilter(poly);
 
     // Raw data
-    for (auto it = std::begin(osmchanges->changes); it != std::end(osmchanges->changes); ++it) {
-        osmchange::OsmChange *change = it->get();
-
+    for (const auto& change : osmchanges->changes) {
         // Nodes
-        for (auto nit = std::begin(change->nodes); nit != std::end(change->nodes); ++nit) {
-            osmobjects::OsmNode *node = nit->get();
-
+        for (const auto& node : change->nodes) {
             if (!node->priority) {
                 continue;
             }
-
             //  Update nodes, ignore new ones outside priority area
-            auto changes = queryraw->applyChange(*node);
-            for (auto it = changes->begin(); it != changes->end(); ++it) {
-                    task.query.push_back(*it);
+            auto queries = queryraw->applyChange(*node);
+            for (const auto& query : *queries) {
+                task.query.push_back(query);
             }
         }
 
         // Ways
-        for (auto wit = std::begin(change->ways); wit != std::end(change->ways); ++wit) {
-            osmobjects::OsmWay *way = wit->get();
-
+        for (const auto& way : change->ways) {
             // Skip if not priority or disabled
             if (way->action != osmobjects::remove && !way->priority) {
                 continue;
             }
 
             //  Update ways, ignore new ones outside priority area
-            auto changes = queryraw->applyChange(*way);
-            for (auto it = changes->begin(); it != changes->end(); ++it) {
-                task.query.push_back(*it);
+            auto queries = queryraw->applyChange(*way);
+            for (const auto& query : *queries) {
+                task.query.push_back(query);
             }
         }
 
         // Relations
-        for (auto rit = std::begin(change->relations); rit != std::end(change->relations); ++rit) {
-            osmobjects::OsmRelation *relation = rit->get();
-
+        for (const auto& relation : change->relations) {
             if (relation->action != osmobjects::remove && !relation->priority) {
                 continue;
             }
             //  Update relations, ignore new ones outside priority area
-            auto changes = queryraw->applyChange(*relation);
-            for (auto it = changes->begin(); it != changes->end(); ++it) {
-                task.query.push_back(*it);
+            auto queries = queryraw->applyChange(*relation);
+            for (const auto& query : *queries) {
+                task.query.push_back(query);
             }
         }
     }

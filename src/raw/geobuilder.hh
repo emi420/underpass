@@ -69,11 +69,12 @@ class GeoBuilder {
     void buildWays(std::shared_ptr<OsmChangeFile> &osmchanges);
     void buildRelations(std::shared_ptr<OsmChangeFile> &osmchanges);
     void buildRelationGeometry(osmobjects::OsmRelation &relation);
-    std::map<double, std::shared_ptr<osmobjects::OsmNode>> nodecache;
-    std::map<double, std::shared_ptr<osmobjects::OsmWay>> waycache;
-    std::string referencedNodeIds;
-    std::string modifiedNodesIds;
-    std::string modifiedWaysIds;
+    std::map<long, std::shared_ptr<osmobjects::OsmNode>> nodecache;
+    std::map<long, std::shared_ptr<osmobjects::OsmWay>> waycache;
+    std::vector<long> referencedNodeIds;
+    std::vector<long> modifiedNodesIds;
+    std::vector<long> modifiedWaysIds;
+    std::vector<long> modifiedRelsIds;
     std::vector<long> removedWays;
     std::vector<long> removedRelations;
     const multipolygon_t &poly;
