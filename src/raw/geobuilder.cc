@@ -291,7 +291,11 @@ GeoBuilder::buildWays(std::shared_ptr<OsmChangeFile> &osmchanges) {
             }
 
             // Save Way pointer for later use. This will be used when building Relations geometries.
-            if (poly.empty() || bg::within(way->linestring, poly)) {
+            if (
+                poly.empty() ||
+                (!way->isClosed() && bg::within(way->linestring, poly)) ||
+                (way->isClosed() && bg::within(way->polygon.outer(), poly))
+            ) {
                 if (waycache.count(way->id)) {
                     if (way->isClosed()) {
                         waycache.at(way->id)->polygon = way->polygon;
