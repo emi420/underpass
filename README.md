@@ -12,16 +12,13 @@ It is designed to be **high performance** on modest hardware.
 
 <!-- prettier-ignore-start -->
 | Status | Feature |
-
-
-
 |:--:| :-- |
 |✅| Process OSM Planet replication files in near-real time |
 |✅| Support Nodes, Ways and Relations |
 |✅| Import OSM PBF files |
 |✅| Fix and improve planet path calculation |
-|⚙️| **Refactor geometry builder** |
-| | Migrate to CMake |
+|✅| Refactor geometry builder |
+| | **Migrate to CMake** |
 | | Debian dist |
 | | MacOS dist |
 | | Python plugins support |
