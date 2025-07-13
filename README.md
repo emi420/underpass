@@ -3,7 +3,7 @@
 Underpass **updates a local copy of the OSM database** in near real-time. 
 It is designed to be **high performance** on modest hardware.
 
-<img width="907" alt="Screenshot 2025-05-02 at 12 07 17 PM" src="https://github.com/user-attachments/assets/0bb7bc16-3b4a-413b-94b1-6e3e138a5ea5" />
+<img width="907" alt="Screenshot 2025-07-13 at 4 14 23 PM" src="https://github.com/user-attachments/assets/d1b95de1-b250-4165-b1bd-5f7c7e29e88d" />
 
 ## Product roadmap
 
@@ -12,6 +12,9 @@ It is designed to be **high performance** on modest hardware.
 
 <!-- prettier-ignore-start -->
 | Status | Feature |
+
+
+
 |:--:| :-- |
 |✅| Process OSM Planet replication files in near-real time |
 |✅| Support Nodes, Ways and Relations |
