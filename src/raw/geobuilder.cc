@@ -72,15 +72,14 @@ GeoBuilder::buildGeometries(std::shared_ptr<OsmChangeFile> &osmchanges)
 #endif
     // Pre-process changes, keeping track of:
     // - Nodes: referenced and modified 
-    // - Ways: removed and modified 
-    // - Relations: removed 
+    // - Ways, Relations: removed and modified  
     preProcessChanges(osmchanges);
 
     // Add indirectly modified features
     addIndirectlyModifiedWays(osmchanges);
     addIndirectlyModifiedRelations(osmchanges);
 
-    // Fill fill caches and build geometries
+    // Fill caches and build geometries
     fillNodeCache(osmchanges);
     buildWays(osmchanges);
     fillWayCache(osmchanges);
