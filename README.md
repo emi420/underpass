@@ -18,7 +18,7 @@ It is designed to be **high performance** on modest hardware.
 |✅| Import OSM PBF files |
 |✅| Fix and improve planet path calculation |
 |✅| Refactor geometry builder |
-| | **Migrate to CMake** |
+|⚙️| **Migrate to CMake** |
 | | Debian dist |
 | | MacOS dist |
 | | Python plugins support |
