@@ -28,6 +28,7 @@
 #ifdef HAVE_CONFIG_H
 #include "unconfig.h"
 #endif
+#include "config.h"
 
 #include <array>
 #include <cstdlib>
@@ -46,6 +47,7 @@ namespace fs = std::filesystem;
 #include <utility>
 #include <vector>
 #include <zlib.h>
+
 #ifdef LIBXML
 #include <libxml++/libxml++.h>
 #endif

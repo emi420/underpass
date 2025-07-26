@@ -27,6 +27,7 @@
 #ifdef HAVE_CONFIG_H
 #include "unconfig.h"
 #endif
+#include "config.h"
 
 #include "replicator/replication.hh"
 #include <boost/format.hpp>
